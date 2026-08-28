@@ -1,0 +1,33 @@
+[
+  { "keywords": ["apel pagi", "apel senin", "apel"],           "title": "Apel Pagi" },
+  { "keywords": ["senam", "senam pagi", "senam bersama"],       "title": "Senam Pagi Bersama" },
+
+  { "keywords": ["posyandu balita"],                            "title": "Posyandu Balita" },
+  { "keywords": ["posyandu lansia", "posy lansia"],             "title": "Posyandu Lansia" },
+  { "keywords": ["posyandu remaja"],                            "title": "Posyandu Remaja" },
+  { "keywords": ["posyandu"],                                   "title": "Posyandu" },
+
+  { "keywords": ["lokmin", "lokakarya mini"],                   "title": "Lokakarya Mini" },
+  { "keywords": ["rapat ukm"],                                  "title": "Rapat UKM" },
+  { "keywords": ["rapat manajemen"],                            "title": "Rapat Manajemen" },
+  { "keywords": ["rapat staff", "rapat staf"],                  "title": "Rapat Staff" },
+  { "keywords": ["rapat"],                                      "title": "Rapat" },
+
+  { "keywords": ["monev keuangan", "monitoring keuangan", "evaluasi keuangan"], "title": "Monitoring dan Evaluasi Keuangan|Dinas Kesehatan" },
+  { "keywords": ["monev", "monitoring evaluasi"],               "title": "Monitoring dan Evaluasi" },
+
+  { "keywords": ["penyuluhan hipertensi"],                      "title": "Penyuluhan Hipertensi" },
+  { "keywords": ["penyuluhan diabetes", "penyuluhan dm"],       "title": "Penyuluhan Diabetes Mellitus" },
+  { "keywords": ["penyuluhan gizi"],                            "title": "Penyuluhan Gizi" },
+  { "keywords": ["penyuluhan phbs"],                            "title": "Penyuluhan PHBS" },
+  { "keywords": ["penyuluhan"],                                 "title": "Penyuluhan Kesehatan" },
+
+  { "keywords": ["imunisasi"],                                  "title": "Kegiatan Imunisasi" },
+  { "keywords": ["kunjungan rumah"],                            "title": "Kunjungan Rumah" },
+  { "keywords": ["pkk"],                                        "title": "Kegiatan PKK" },
+  { "keywords": ["posbindu"],                                   "title": "Posbindu PTM" },
+  { "keywords": ["prolanis"],                                   "title": "Kegiatan Prolanis" },
+  { "keywords": ["ckg", "cek kesehatan"],                       "title": "Cek Kesehatan Gratis" },
+  { "keywords": ["pelatihan", "bimtek"],                        "title": "Pelatihan" },
+  { "keywords": ["sosialisasi"],                                 "title": "Sosialisasi" }
+]

@@ -1,0 +1,26 @@
+{
+  "default": {
+    "label": "Teal Classic",
+    "type": "kegiatan"
+  },
+  "hut_ri": {
+    "label": "HUT RI 81",
+    "type": "kegiatan"
+  },
+  "light_biru": {
+    "label": "Light Blue",
+    "type": "kegiatan"
+  },
+  "ckg": {
+    "label": "Cek Kesehatan Gratis",
+    "type": "program"
+  },
+  "tracingtb_green": {
+    "label": "Tracing TB Green",
+    "type": "program"
+  },
+  "sppd_default": {
+    "label": "SPPD Standard",
+    "type": "sppd"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "doc_title": "DOKUMENTASI PERJALANAN DINAS",
+  "info_y": 420,
+  "photos_y": 700,
+  "left_x": 219,
+  "right_x": 1441,
+  "photo_grid": {
+    "cols": 2,
+    "gap": 20,
+    "ratio": 0.75
+  }
+}

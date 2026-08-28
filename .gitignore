@@ -1,0 +1,28 @@
+# Virtual environment
+.venv/
+
+# Environment variables (berisi token bot — JANGAN di-push)
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Log aktivitas
+logs/
+
+# Preview sementara
+assets/templates/*/preview_*.pdf
+
+# Folder kerja lokal (tidak perlu di repo)
+output/
+Impor foto/
+Template BG/
+
+# File design source
+*.psd
+
+# OS
+.DS_Store
+Thumbs.db

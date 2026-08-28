@@ -1,0 +1,41 @@
+{
+  "canvas": {
+    "w": 1080,
+    "h": 1350
+  },
+  "photo_zone": {
+    "x": 70,
+    "y": 247,
+    "w": 940,
+    "h": 839
+  },
+  "photo_gap": 15,
+  "corner_r": 9,
+  "border_w": 4,
+  "frame_corner": 14,
+  "frame_inner": 14,
+  "frame_color": "#850200",
+  "title": {
+    "cx": 540,
+    "y": 132,
+    "max_w": 960,
+    "size_line1": 30,
+    "color_line1": "#850200",
+    "size_line2": 20,
+    "color_line2": "#717171",
+    "line_h1": 50,
+    "line_h2": 38
+  },
+  "location": {
+    "cx": 540,
+    "y": 1115,
+    "size": 22,
+    "color": "#850200"
+  },
+  "date": {
+    "cx": 540,
+    "y": 1150,
+    "size": 20,
+    "color": "#717171"
+  }
+}
