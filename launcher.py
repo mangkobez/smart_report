@@ -22,9 +22,10 @@ STREAMLIT    = BASE_DIR / ".venv" / "Scripts" / "streamlit.exe"
 def is_bot_running() -> bool:
     try:
         r = subprocess.run(
-            ["wmic", "process", "where", "name='python.exe'",
-             "get", "commandline", "/format:list"],
-            capture_output=True, text=True, timeout=5,
+            ["powershell", "-NoProfile", "-Command",
+             "Get-CimInstance Win32_Process -Filter \"name='python.exe'\" "
+             "| Select-Object -ExpandProperty CommandLine"],
+            capture_output=True, text=True, timeout=8,
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
         return "bot.py" in r.stdout
@@ -58,9 +59,11 @@ def start_bot() -> None:
 
 def stop_bot() -> None:
     subprocess.run(
-        ["wmic", "process", "where", "name='python.exe' and commandline like '%bot.py%'",
-         "delete"],
-        capture_output=True,
+        ["powershell", "-NoProfile", "-Command",
+         "Get-CimInstance Win32_Process -Filter \"name='python.exe'\" "
+         "| Where-Object { $_.CommandLine -like '*bot.py*' } "
+         "| ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"],
+        capture_output=True, timeout=10,
         creationflags=subprocess.CREATE_NO_WINDOW,
     )
 
