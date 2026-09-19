@@ -651,26 +651,27 @@ def render_apel(
         q_pill_y0    = pill_area_y0 + max(0, (QUOTE_H - box_h) // 2)
         q_pill_y1    = q_pill_y0 + box_h
 
+        # Box semi-transparan — harus pakai alpha_composite agar benar
+        q_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(q_layer).rounded_rectangle(
+            [(q_pill_x0, q_pill_y0), (q_pill_x1, q_pill_y1)],
+            radius=12, fill=(255, 255, 255, 35)
+        )
+        canvas = Image.alpha_composite(canvas, q_layer)
+
+        # Tanda petik dan teks digambar langsung (opaque) di atas canvas hasil composite
         d_q = ImageDraw.Draw(canvas)
 
-        # Box semi-transparan
-        d_q.rounded_rectangle(
-            [(q_pill_x0, q_pill_y0), (q_pill_x1, q_pill_y1)],
-            radius=12, fill=(255, 255, 255, 45)
-        )
-
-        qm_col = (255, 255, 255, 210)
-
-        # Opening " — dalam box, pojok atas-kiri
+        # Opening " — pojok atas-kiri dalam box
         d_q.text(
             (q_pill_x0 + 10, q_pill_y0 + 6 - bb_o[1]),
-            "“", font=fnt_qm, fill=qm_col
+            "“", font=fnt_qm, fill=(255, 255, 255, 255)
         )
 
-        # Closing " — dalam box, pojok bawah-kanan (bottom-aligned)
+        # Closing " — pojok bawah-kanan dalam box (bottom-aligned)
         d_q.text(
             (q_pill_x1 - cl_w - 10, q_pill_y1 - cl_h - 6 - bb_c[1]),
-            "”", font=fnt_qm, fill=qm_col
+            "”", font=fnt_qm, fill=(255, 255, 255, 255)
         )
 
         # Teks quote — putih penuh, di bawah tanda petik pembuka
