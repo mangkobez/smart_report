@@ -21,7 +21,7 @@ from .parser import parse_date, fmt_date
 from .handlers import _generate_and_send, _generate_and_send_pdf, _generate_and_send_apel, receive_scan_doc, LOCATION_DEFAULT
 
 # ── States ─────────────────────────────────────────────────────────────────────
-DOC_TYPE, SUBTYPE, INPUT_A, INPUT_B, INPUT_C, TEMPLATE_SEL, PHOTOS, SPPD_DOCS, APEL_BG, APEL_QUOTE = range(10)
+DOC_TYPE, SUBTYPE, INPUT_A, INPUT_B, INPUT_C, TEMPLATE_SEL, PHOTOS, SPPD_DOCS, APEL_BG, APEL_QUOTE, EDIT_MENU = range(11)
 
 # ── Katalog jenis dokumen ──────────────────────────────────────────────────────
 JENIS_DOC = {
@@ -117,6 +117,17 @@ def _kb_apel_quote(quotes: list[str]) -> InlineKeyboardMarkup:
         for i, q in enumerate(quotes)
     ]
     rows.append([InlineKeyboardButton("✏️  Ketik sendiri", callback_data="quote:manual")])
+    return InlineKeyboardMarkup(rows)
+
+
+def _kb_edit_menu(doc_type: str) -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton("✏️  Ganti Judul", callback_data="edit:title")],
+        [InlineKeyboardButton("🖼️  Ganti Foto",  callback_data="edit:photos")],
+    ]
+    if doc_type == "apel":
+        rows.append([InlineKeyboardButton("💬  Ganti Quote", callback_data="edit:quote")])
+    rows.append([InlineKeyboardButton("🔄  Generate Ulang", callback_data="edit:regen")])
     return InlineKeyboardMarkup(rows)
 
 
@@ -250,7 +261,7 @@ async def got_apel_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     titles = {
         "morning":       "Morning Briefing",
-        "preconference": "Pre Conference & Do'a Bersama",
+        "preconference": "Pre Conference | & Do'a Bersama",
     }
     title = titles.get(val, val)
     sess.get(update.effective_chat.id).title = title
@@ -271,6 +282,18 @@ async def got_input_a(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     doc_type = context.user_data.get("doc_type", "kegiatan")
     text     = update.message.text.strip()
     s        = sess.get(chat_id)
+
+    # Edit mode: judul baru → langsung regenerate
+    if context.user_data.get("edit_mode") == "title":
+        s.title = text
+        context.user_data.pop("edit_mode", None)
+        template = context.user_data.get("template", "default")
+        await update.message.reply_text("Sedang generate ulang...")
+        if doc_type == "apel":
+            await _generate_and_send_apel(chat_id, context, update.effective_user)
+        else:
+            await _generate_and_send(chat_id, context, update.effective_user, template=template)
+        return ConversationHandler.END
 
     if doc_type == "kegiatan":
         title, matched = recognize(text)
@@ -667,11 +690,112 @@ async def conv_batal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
+# ── Edit: /edit command & inline button ───────────────────────────────────────
+
+async def cmd_edit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    last = context.user_data.get("last_gen")
+    if not last:
+        await update.message.reply_text(
+            "Belum ada dokumen yang dapat diedit.\n"
+            "Ketik /mulai untuk membuat dokumen baru."
+        )
+        return ConversationHandler.END
+    doc_type = last.get("doc_type", "kegiatan")
+    title    = last.get("title", "-")
+    await update.message.reply_text(
+        f"*Edit Dokumen Terakhir*\n\nJudul: _{title}_\n\nApa yang ingin diubah?",
+        parse_mode="Markdown",
+        reply_markup=_kb_edit_menu(doc_type),
+    )
+    return EDIT_MENU
+
+
+async def cmd_edit_btn(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Dipanggil dari tombol Edit pada foto hasil generate."""
+    q = update.callback_query
+    await q.answer()
+    last = context.user_data.get("last_gen")
+    if not last:
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Data sesi sudah tidak tersedia.\nKetik /mulai untuk membuat dokumen baru."
+        )
+        return ConversationHandler.END
+    doc_type = last.get("doc_type", "kegiatan")
+    title    = last.get("title", "-")
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=f"*Edit Dokumen Terakhir*\n\nJudul: _{title}_\n\nApa yang ingin diubah?",
+        parse_mode="Markdown",
+        reply_markup=_kb_edit_menu(doc_type),
+    )
+    return EDIT_MENU
+
+
+async def got_edit_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    q      = update.callback_query
+    await q.answer()
+    action = q.data.replace("edit:", "")
+    last   = context.user_data.get("last_gen", {})
+    chat_id = update.effective_chat.id
+
+    # Restore session dari last_gen
+    s = sess.get(chat_id)
+    s.title        = last.get("title", "")
+    s.location     = last.get("location", "")
+    s.event_date   = last.get("event_date", date.today())
+    s.quote        = last.get("quote", "")
+    s.bg_photo_idx = last.get("bg_photo_idx", 0)
+    s.photos       = list(last.get("photos", []))
+    context.user_data["doc_type"] = last.get("doc_type", "kegiatan")
+    context.user_data["template"] = last.get("template", "default")
+
+    if action == "title":
+        context.user_data["edit_mode"] = "title"
+        await q.edit_message_text("Ketik judul baru:")
+        return INPUT_A
+
+    elif action == "photos":
+        context.user_data["edit_mode"] = "photos"
+        s.photos = []
+        await q.edit_message_text(
+            "Kirim foto-foto baru, lalu /done jika sudah selesai.\n"
+            "(Foto lama dihapus.)"
+        )
+        return PHOTOS
+
+    elif action == "quote":
+        context.user_data["edit_mode"] = "quote"
+        quotes = _random_quotes(3)
+        context.user_data["quote_options"] = quotes
+        await q.edit_message_text(
+            "Pilih quote baru:",
+            reply_markup=_kb_apel_quote(quotes),
+        )
+        return APEL_QUOTE
+
+    elif action == "regen":
+        doc_type = last.get("doc_type", "kegiatan")
+        template = last.get("template", "default")
+        await q.edit_message_text("Sedang generate ulang...")
+        if doc_type == "apel":
+            await _generate_and_send_apel(chat_id, context, update.effective_user)
+        else:
+            await _generate_and_send(chat_id, context, update.effective_user, template=template)
+        return ConversationHandler.END
+
+    return EDIT_MENU
+
+
 # ── Builder ────────────────────────────────────────────────────────────────────
 def build() -> ConversationHandler:
     txt = filters.TEXT & ~filters.COMMAND
     return ConversationHandler(
-        entry_points=[CommandHandler("mulai", mulai)],
+        entry_points=[
+            CommandHandler("mulai", mulai),
+            CommandHandler("edit",  cmd_edit),
+            CallbackQueryHandler(cmd_edit_btn, pattern="^edit_menu$"),
+        ],
         states={
             DOC_TYPE: [
                 CallbackQueryHandler(got_doc_type, pattern="^jenis:"),
@@ -710,6 +834,9 @@ def build() -> ConversationHandler:
             APEL_QUOTE: [
                 CallbackQueryHandler(got_apel_quote_btn, pattern="^quote:"),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, got_apel_quote_text),
+            ],
+            EDIT_MENU: [
+                CallbackQueryHandler(got_edit_choice, pattern="^edit:"),
             ],
         },
         fallbacks=[CommandHandler("batal", conv_batal)],

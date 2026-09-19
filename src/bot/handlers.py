@@ -6,7 +6,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from PIL import Image
-from telegram import Chat, Update
+from telegram import Chat, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from . import session as sess
@@ -22,6 +22,8 @@ MAX_PHOTOS       = int(os.getenv("MAX_PHOTOS", "9"))
 ADMIN_CHAT_ID    = os.getenv("ADMIN_CHAT_ID", "")
 
 _LOG_FILE = Path(__file__).parent.parent.parent / "logs" / "activity.log"
+
+_KB_EDIT = InlineKeyboardMarkup([[InlineKeyboardButton("✏️  Edit", callback_data="edit_menu")]])
 
 
 def _log_activity(user, title: str, n_photos: int) -> None:
@@ -105,11 +107,20 @@ async def _generate_and_send(chat_id: int, context: ContextTypes.DEFAULT_TYPE,
     buf.seek(0)
     buf.name = "dokumentasi.jpg"
 
+    context.user_data["last_gen"] = {
+        "doc_type":   context.user_data.get("doc_type", "kegiatan"),
+        "template":   template,
+        "title":      title,
+        "location":   location,
+        "event_date": s.event_date,
+        "photos":     list(s.photos),
+    }
     await context.bot.send_photo(
         chat_id=chat_id,
         photo=buf,
         caption=f"✅ *{title}*\n_{location}_",
         parse_mode="Markdown",
+        reply_markup=_KB_EDIT,
     )
     sess.clear(chat_id)
 
@@ -195,11 +206,22 @@ async def _generate_and_send_apel(chat_id: int, context: ContextTypes.DEFAULT_TY
     buf.seek(0)
     buf.name = "apel_pagi.jpg"
 
+    context.user_data["last_gen"] = {
+        "doc_type":    "apel",
+        "template":    template,
+        "title":       s.title or "Morning Briefing",
+        "location":    s.location,
+        "event_date":  s.event_date,
+        "quote":       s.quote,
+        "bg_photo_idx": s.bg_photo_idx,
+        "photos":      list(s.photos),
+    }
     await context.bot.send_photo(
         chat_id=chat_id,
         photo=buf,
         caption=f"✅ *{s.title or 'Apel Pagi'}*",
         parse_mode="Markdown",
+        reply_markup=_KB_EDIT,
     )
     sess.clear(chat_id)
 

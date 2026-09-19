@@ -45,7 +45,7 @@
     "info_x": 52,
     "info_font_size": 22,
     "icon_sz": 22,
-    "blur_radius": 9,
+    "blur_radius": 12,
     "dark_alpha": 40,
     "grad_alpha": 180,
     "frame_pad": 54,
