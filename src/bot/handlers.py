@@ -10,7 +10,7 @@ from telegram.ext import ContextTypes
 from . import session as sess
 from .recognizer import recognize
 from .parser import parse_input, parse_date, fmt_date
-from src.renderer.canvas import render_doc
+from src.renderer.canvas import render_doc, render_apel
 from src.renderer.photo import select_best
 from src.renderer.pdf_doc import render_sppd_pdf, photo_to_pdf_bytes, merge_pdfs
 
@@ -164,6 +164,39 @@ async def _generate_and_send_pdf(chat_id: int, context: ContextTypes.DEFAULT_TYP
         document=buf,
         filename=filename,
         caption=caption,
+        parse_mode="Markdown",
+    )
+    sess.clear(chat_id)
+
+
+async def _generate_and_send_apel(chat_id: int, context: ContextTypes.DEFAULT_TYPE,
+                                   user=None) -> None:
+    s = sess.get(chat_id)
+    template = context.user_data.get("template", "apel_default")
+
+    if user:
+        _log_activity(user, s.title or "Apel Pagi", len(s.photos))
+
+    await context.bot.send_chat_action(chat_id=chat_id, action="upload_photo")
+
+    img = render_apel(
+        title=s.title or "Morning Briefing",
+        photos=s.photos,
+        event_date=s.event_date,
+        location=s.location,
+        quote=s.quote,
+        bg_idx=s.bg_photo_idx,
+        template=template,
+    )
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=92)
+    buf.seek(0)
+    buf.name = "apel_pagi.jpg"
+
+    await context.bot.send_photo(
+        chat_id=chat_id,
+        photo=buf,
+        caption=f"✅ *{s.title or 'Apel Pagi'}*",
         parse_mode="Markdown",
     )
     sess.clear(chat_id)

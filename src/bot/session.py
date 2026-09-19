@@ -6,11 +6,13 @@ from PIL import Image
 @dataclass
 class Session:
     photos: list[Image.Image] = field(default_factory=list)
-    scan_docs: list[bytes] = field(default_factory=list)  # PDF bytes dari scan surat
+    scan_docs: list[bytes] = field(default_factory=list)
     title: str = ""
     location: str | None = None
     event_date: date = field(default_factory=date.today)
-    job: object = None  # asyncio job handle (JobQueue)
+    job: object = None
+    bg_photo_idx: int = 0
+    quote: str = ""
 
 
 _store: dict[int, Session] = {}

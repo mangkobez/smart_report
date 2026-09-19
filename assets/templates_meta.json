@@ -22,5 +22,13 @@
   "sppd_default": {
     "label": "SPPD Standard",
     "type": "sppd"
+  },
+  "apel_default": {
+    "label": "Apel / Briefing Pagi",
+    "type": "apel"
+  },
+  "dok_coklat": {
+    "label": "dokumentasi coklat",
+    "type": "kegiatan"
   }
 }

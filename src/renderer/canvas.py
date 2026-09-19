@@ -77,6 +77,26 @@ def _bold(size: int) -> ImageFont.ImageFont:
         return _font(size)
 
 
+def _italic_bold(size: int) -> ImageFont.ImageFont:
+    try:
+        return ImageFont.truetype(
+            str(ASSETS_DIR / "fonts" / "NotoSans-BoldItalic.ttf"), size)
+    except (IOError, OSError):
+        return _bold(size)
+
+
+def _remove_white_bg(img: Image.Image, thresh: int = 240) -> Image.Image:
+    """Ubah piksel putih/near-white jadi transparan."""
+    img = img.convert("RGBA")
+    data = list(img.getdata())
+    new = [
+        (r, g, b, 0) if r >= thresh and g >= thresh and b >= thresh else (r, g, b, a)
+        for r, g, b, a in data
+    ]
+    img.putdata(new)
+    return img
+
+
 def _tw(text: str, font) -> int:
     bb = font.getbbox(text)
     return bb[2] - bb[0]
@@ -364,3 +384,148 @@ def render_doc(
         canvas.save(str(output_path), "JPEG", quality=92)
 
     return canvas
+
+
+# ---------------------------------------------------------------------------
+# Apel / Briefing renderer
+# ---------------------------------------------------------------------------
+
+def render_apel(
+    title: str,
+    photos: list[Image.Image],
+    event_date: date,
+    location: str | None,
+    quote: str,
+    bg_idx: int = 0,
+    template: str = "apel_default",
+    output_path: str | Path | None = None,
+) -> Image.Image:
+    """Render template Apel Pagi: background blur + overlay + kolase + quote."""
+    from PIL import ImageFilter
+
+    W, H = 1080, 1350
+
+    # Pisahkan foto background dari kolase
+    bg_idx = max(0, min(bg_idx, len(photos) - 1))
+    bg_photo = photos[bg_idx]
+    collage_photos = [p for i, p in enumerate(photos) if i != bg_idx]
+
+    # 1. Background: foto di-blur
+    bg = smart_crop(bg_photo, W, H).convert("RGBA")
+    bg = bg.filter(ImageFilter.GaussianBlur(radius=18))
+
+    # 2. Dark navy overlay
+    dark = Image.new("RGBA", (W, H), (15, 35, 65, 155))
+    canvas = Image.alpha_composite(bg, dark)
+
+    # 3. Tempel overlay.png (header + footer, hapus bg putih)
+    tpl_dir = TEMPLATES_DIR / template
+    ovl_path = tpl_dir / "overlay.png"
+    if ovl_path.exists():
+        ovl = Image.open(ovl_path).convert("RGBA")
+        if ovl.size != (W, H):
+            ovl = ovl.resize((W, H), Image.LANCZOS)
+        ovl = _remove_white_bg(ovl, thresh=238)
+        canvas = Image.alpha_composite(canvas, ovl)
+
+    # 4. Judul: NotoSans Bold Italic, putih dengan outline hitam
+    draw = ImageDraw.Draw(canvas)
+    fnt_title = _italic_bold(66)
+    title_y = 115
+    tx = W // 2 - _tw(title, fnt_title) // 2
+    for dx, dy in [(-2, -2), (2, -2), (-2, 2), (2, 2), (0, -2), (0, 2), (-2, 0), (2, 0)]:
+        draw.text((tx + dx, title_y + dy), title, font=fnt_title, fill=(0, 0, 0, 230))
+    draw.text((tx, title_y), title, font=fnt_title, fill=(255, 255, 255, 255))
+
+    # Helper: gambar pill semi-transparan
+    def _pill(cy: int, text: str, bg_rgba=(255, 255, 255, 110),
+              fnt=None, txt_color=(255, 255, 255, 255), pad_x=26, pad_y=9) -> int:
+        nonlocal canvas
+        f = fnt or _bold(26)
+        tw = _tw(text, f)
+        bb = f.getbbox(text)
+        th = bb[3] - bb[1]
+        pw, ph = tw + pad_x * 2, th + pad_y * 2
+        px0 = W // 2 - pw // 2
+        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(layer).rounded_rectangle(
+            [(px0, cy), (px0 + pw, cy + ph)], radius=ph // 2, fill=bg_rgba
+        )
+        canvas = Image.alpha_composite(canvas, layer)
+        ImageDraw.Draw(canvas).text(
+            (W // 2 - tw // 2, cy + pad_y), text, font=f, fill=txt_color
+        )
+        return cy + ph
+
+    # 5. Pill lokasi dan tanggal
+    fnt_pill = _bold(26)
+    pill_y = 210
+    loc_text = location or "UPTD Puskesmas Cipatujah"
+    pill_y = _pill(pill_y, loc_text, fnt=fnt_pill)
+
+    date_str = (
+        f"{HARI_ID[event_date.weekday()]}, "
+        f"{event_date.day} {BULAN[event_date.month]} {event_date.year}"
+    )
+    pill_y = _pill(pill_y + 10, date_str, fnt=fnt_pill)
+
+    # 6. Kotak putih semi-transparan untuk kolase
+    box_x0, box_x1 = 52, 1028
+    box_y0 = pill_y + 22
+    box_y1 = 1055
+    box_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(box_layer).rounded_rectangle(
+        [(box_x0, box_y0), (box_x1, box_y1)], radius=22, fill=(255, 255, 255, 195)
+    )
+    canvas = Image.alpha_composite(canvas, box_layer)
+
+    # 7. Tempatkan foto kolase
+    canvas_rgb = canvas.convert("RGB")
+    if collage_photos:
+        PAD = 18
+        fake_cfg = {
+            "photo_zone": {
+                "x": box_x0 + PAD, "y": box_y0 + PAD,
+                "w": (box_x1 - box_x0) - PAD * 2,
+                "h": (box_y1 - box_y0) - PAD * 2,
+            },
+            "photo_gap": 14,
+            "corner_r": 12,
+            "border_w": 3,
+            "frame_inner": 0,
+            "frame_corner": 0,
+            "frame_color": "none",
+        }
+        _place_photos(canvas_rgb, ImageDraw.Draw(canvas_rgb), collage_photos, fake_cfg)
+
+    # 8. Quote pill di bawah kotak
+    canvas = canvas_rgb.convert("RGBA")
+    fnt_quote = _font(27)
+    quote_text = f'"{quote}"'
+    lines = _wrap(quote_text, fnt_quote, 940)
+    bb = fnt_quote.getbbox("A")
+    line_h = bb[3] - bb[1] + 6
+    q_total_h = len(lines) * line_h
+    pad_x, pad_y = 30, 12
+    q_max_w = max(_tw(l, fnt_quote) for l in lines)
+    qpw = q_max_w + pad_x * 2
+    qph = q_total_h + pad_y * 2
+    quote_y = box_y1 + 16
+    qx0 = W // 2 - qpw // 2
+    q_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(q_layer).rounded_rectangle(
+        [(qx0, quote_y), (qx0 + qpw, quote_y + qph)],
+        radius=min(qph // 2, 30), fill=(0, 0, 0, 100),
+    )
+    canvas = Image.alpha_composite(canvas, q_layer)
+    d_q = ImageDraw.Draw(canvas)
+    ty = quote_y + pad_y
+    for line in lines:
+        d_q.text((W // 2 - _tw(line, fnt_quote) // 2, ty),
+                 line, font=fnt_quote, fill=(220, 220, 220, 255))
+        ty += line_h
+
+    result = canvas.convert("RGB")
+    if output_path:
+        result.save(str(output_path), "JPEG", quality=92)
+    return result

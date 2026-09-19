@@ -4,6 +4,7 @@ Flow bertahap dengan pilihan jenis dokumen:
 """
 import io
 import json
+import random
 from datetime import date
 from pathlib import Path
 
@@ -17,20 +18,36 @@ from telegram.ext import (
 from . import session as sess
 from .recognizer import recognize
 from .parser import parse_date, fmt_date
-from .handlers import _generate_and_send, _generate_and_send_pdf, receive_scan_doc, LOCATION_DEFAULT
+from .handlers import _generate_and_send, _generate_and_send_pdf, _generate_and_send_apel, receive_scan_doc, LOCATION_DEFAULT
 
 # ── States ─────────────────────────────────────────────────────────────────────
-DOC_TYPE, SUBTYPE, INPUT_A, INPUT_B, INPUT_C, TEMPLATE_SEL, PHOTOS, SPPD_DOCS = range(8)
+DOC_TYPE, SUBTYPE, INPUT_A, INPUT_B, INPUT_C, TEMPLATE_SEL, PHOTOS, SPPD_DOCS, APEL_BG, APEL_QUOTE = range(10)
 
 # ── Katalog jenis dokumen ──────────────────────────────────────────────────────
 JENIS_DOC = {
     "kegiatan":     "📋  Dokumentasi Kegiatan",
+    "apel":         "🌅  Apel / Briefing Pagi",
     "program":      "🏥  Program Kesehatan",
     "sppd":         "✈️  Perjalanan Dinas (SPPD)",
     "belasungkawa": "🕊️  Ucapan Belasungkawa",
     "ucapan":       "🎉  Ucapan Selamat",
     "ultah":        "🎂  Ucapan Ulang Tahun",
 }
+
+QUOTES_PATH = Path(__file__).parent.parent.parent / "assets" / "quotes.json"
+
+
+def _random_quotes(n: int = 3) -> list[str]:
+    try:
+        quotes = json.loads(QUOTES_PATH.read_text(encoding="utf-8"))
+        return random.sample(quotes, min(n, len(quotes)))
+    except Exception:
+        return [
+            "Pelayanan terbaik adalah tanda profesionalisme yang sesungguhnya.",
+            "Semangat yang tulus adalah kunci pelayanan yang bermutu.",
+            "Bekerja dengan semangat, melayani dengan sepenuh hati.",
+        ]
+
 
 SUB_UCAPAN = {
     "dilantik":    "Selamat Atas Dilantiknya",
@@ -85,6 +102,24 @@ def _kb_today() -> InlineKeyboardMarkup:
     ]])
 
 
+def _kb_apel_title() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🌅  Morning Briefing", callback_data="apel_title:morning")],
+        [InlineKeyboardButton("🙏  Pre Conference & Do'a Bersama", callback_data="apel_title:preconference")],
+        [InlineKeyboardButton("✏️  Ketik Judul Sendiri", callback_data="apel_title:manual")],
+    ])
+
+
+def _kb_apel_quote(quotes: list[str]) -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(f'"{q[:60]}…"' if len(q) > 60 else f'"{q}"',
+                              callback_data=f"quote:{i}")]
+        for i, q in enumerate(quotes)
+    ]
+    rows.append([InlineKeyboardButton("✏️  Ketik sendiri", callback_data="quote:manual")])
+    return InlineKeyboardMarkup(rows)
+
+
 def _kb_template(doc_type: str | None = None) -> InlineKeyboardMarkup:
     meta = _load_meta()
     rows = [
@@ -131,6 +166,14 @@ async def got_doc_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             parse_mode="Markdown",
         )
         return INPUT_A
+
+    elif key == "apel":
+        await q.edit_message_text(
+            "✅ *Apel / Briefing Pagi*\n\nPilih judul:",
+            parse_mode="Markdown",
+            reply_markup=_kb_apel_title(),
+        )
+        return SUBTYPE
 
     elif key == "program":
         s = sess.get(update.effective_chat.id)
@@ -195,6 +238,33 @@ async def got_subtype(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return INPUT_A
 
 
+# ── SUBTYPE: pilih judul apel ─────────────────────────────────────────────────
+async def got_apel_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    q   = update.callback_query
+    await q.answer()
+    val = q.data.replace("apel_title:", "")
+
+    if val == "manual":
+        await q.edit_message_text("Ketik judul kegiatan:", parse_mode="Markdown")
+        return INPUT_A
+
+    titles = {
+        "morning":       "Morning Briefing",
+        "preconference": "Pre Conference & Do'a Bersama",
+    }
+    title = titles.get(val, val)
+    sess.get(update.effective_chat.id).title = title
+    context.user_data["doc_type"] = "apel"
+    context.user_data["template"] = "apel_default"
+
+    await q.edit_message_text(
+        f"Judul: *{title}*\n\nKetik tanggal kegiatan:",
+        parse_mode="Markdown",
+        reply_markup=_kb_today(),
+    )
+    return INPUT_C
+
+
 # ── INPUT_A: judul kegiatan / nama orang ──────────────────────────────────────
 async def got_input_a(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id  = update.effective_chat.id
@@ -214,6 +284,16 @@ async def got_input_a(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             reply_markup=_kb_skip("skip_loc", f"Lewati (pakai default)"),
         )
         return INPUT_B
+
+    elif doc_type == "apel":
+        s.title = text
+        context.user_data["template"] = "apel_default"
+        await update.message.reply_text(
+            f"Judul: *{text}*\n\nKetik tanggal kegiatan:",
+            parse_mode="Markdown",
+            reply_markup=_kb_today(),
+        )
+        return INPUT_C
 
     elif doc_type == "sppd":
         s.title = text
@@ -351,6 +431,15 @@ async def got_input_c(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         )
         return INPUT_C
     sess.get(chat_id).event_date = d
+    if doc_type == "apel":
+        context.user_data["template"] = "apel_default"
+        await update.message.reply_text(
+            f"Tanggal: {_fmt(d)}\n\n"
+            "Silakan kirim semua foto.\n"
+            "Foto yang dipilih sebagai background akan ditentukan setelah /done.",
+            parse_mode="Markdown",
+        )
+        return PHOTOS
     await update.message.reply_text(
         f"Tanggal: {_fmt(d)}\n\n"
         "Pilih Template:",
@@ -365,6 +454,15 @@ async def today_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await q.answer()
     doc_type = context.user_data.get("doc_type", "kegiatan")
     sess.get(update.effective_chat.id).event_date = date.today()
+    if doc_type == "apel":
+        context.user_data["template"] = "apel_default"
+        await q.edit_message_text(
+            f"Tanggal: {_fmt(date.today())}\n\n"
+            "Silakan kirim semua foto.\n"
+            "Foto yang dipilih sebagai background akan ditentukan setelah /done.",
+            parse_mode="Markdown",
+        )
+        return PHOTOS
     await q.edit_message_text(
         f"Tanggal: {_fmt(date.today())}\n\n"
         "Pilih Template:",
@@ -425,6 +523,19 @@ async def conv_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     template = context.user_data.get("template", "default")
     doc_type = context.user_data.get("doc_type", "kegiatan")
+    if doc_type == "apel":
+        n = len(s.photos)
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton(f"Foto ke-{i + 1}", callback_data=f"bg:{i}")]
+            for i in range(n)
+        ])
+        await update.message.reply_text(
+            f"📸 *{n} foto* diterima.\n\n"
+            "Pilih *nomor foto* yang dijadikan *background* (akan di-blur):",
+            parse_mode="Markdown",
+            reply_markup=keyboard,
+        )
+        return APEL_BG
     if doc_type == "sppd":
         await update.message.reply_text(
             "📎 Kirim foto atau file PDF *Surat Tugas* dan *SPPD* untuk dilampirkan.\n\n"
@@ -496,6 +607,55 @@ async def sppd_docs_lewati(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return ConversationHandler.END
 
 
+async def got_apel_bg(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User memilih foto background."""
+    q = update.callback_query
+    await q.answer()
+    bg_idx = int(q.data.replace("bg:", ""))
+    sess.get(update.effective_chat.id).bg_photo_idx = bg_idx
+
+    quotes = _random_quotes(3)
+    context.user_data["quote_options"] = quotes
+    await q.edit_message_text(
+        f"Foto ke-{bg_idx + 1} sebagai background.\n\n"
+        "Pilih *quote* penyemangat, atau ketik sendiri:",
+        parse_mode="Markdown",
+        reply_markup=_kb_apel_quote(quotes),
+    )
+    return APEL_QUOTE
+
+
+async def got_apel_quote_btn(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User memilih quote dari tombol."""
+    q = update.callback_query
+    await q.answer()
+    val = q.data.replace("quote:", "")
+
+    if val == "manual":
+        await q.edit_message_text("Ketik quote penyemangat kerja:")
+        return APEL_QUOTE
+
+    idx = int(val)
+    quotes = context.user_data.get("quote_options", [])
+    quote = quotes[idx] if idx < len(quotes) else ""
+    sess.get(update.effective_chat.id).quote = quote
+
+    await q.edit_message_text("Sedang generate gambar...")
+    await _generate_and_send_apel(
+        update.effective_chat.id, context, update.effective_user
+    )
+    return ConversationHandler.END
+
+
+async def got_apel_quote_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """User mengetik quote sendiri."""
+    chat_id = update.effective_chat.id
+    sess.get(chat_id).quote = update.message.text.strip()
+    await update.message.reply_text("Sedang generate gambar...")
+    await _generate_and_send_apel(chat_id, context, update.effective_user)
+    return ConversationHandler.END
+
+
 async def conv_batal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     chat_id = update.effective_chat.id
     s = sess.get(chat_id)
@@ -518,6 +678,7 @@ def build() -> ConversationHandler:
             ],
             SUBTYPE: [
                 CallbackQueryHandler(got_subtype, pattern="^sub:"),
+                CallbackQueryHandler(got_apel_title, pattern="^apel_title:"),
             ],
             INPUT_A: [
                 MessageHandler(txt, got_input_a),
@@ -542,6 +703,13 @@ def build() -> ConversationHandler:
                 MessageHandler(filters.Document.PDF, sppd_docs_file),
                 CommandHandler("selesai", sppd_docs_selesai),
                 CommandHandler("lewati", sppd_docs_lewati),
+            ],
+            APEL_BG: [
+                CallbackQueryHandler(got_apel_bg, pattern="^bg:"),
+            ],
+            APEL_QUOTE: [
+                CallbackQueryHandler(got_apel_quote_btn, pattern="^quote:"),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, got_apel_quote_text),
             ],
         },
         fallbacks=[CommandHandler("batal", conv_batal)],
