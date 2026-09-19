@@ -85,6 +85,14 @@ def _italic_bold(size: int) -> ImageFont.ImageFont:
         return _bold(size)
 
 
+def _montserrat_black(size: int) -> ImageFont.ImageFont:
+    try:
+        return ImageFont.truetype(
+            str(ASSETS_DIR / "fonts" / "Montserrat-Black.ttf"), size)
+    except (IOError, OSError):
+        return _bold(size)
+
+
 def _remove_white_bg(img: Image.Image, thresh: int = 240) -> Image.Image:
     """Ubah piksel putih/near-white jadi transparan."""
     img = img.convert("RGBA")
@@ -473,9 +481,9 @@ def render_apel(
             ovl = ovl.resize((W, H), Image.LANCZOS)
         canvas = Image.alpha_composite(canvas, ovl)
 
-    # 5. Judul: rata kiri, NotoSans Bold Italic, outline tipis
+    # 5. Judul: rata kiri, Montserrat Black, outline tipis
     draw = ImageDraw.Draw(canvas)
-    fnt_title = _italic_bold(TITLE_SIZE)
+    fnt_title = _montserrat_black(TITLE_SIZE)
     title_lines = _wrap(title.upper(), fnt_title, W - 100)
     bb_t = fnt_title.getbbox("A")
     lh_t = (bb_t[3] - bb_t[1]) + 8
