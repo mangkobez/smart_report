@@ -49,13 +49,13 @@
     "dark_alpha": 30,
     "grad_alpha": 115,
     "frame_pad": 54,
-    "quote_h": 155,
+    "quote_h": 200,
     "quote_font_size": 28,
     "footer_ratio": 0.09,
     "info_gap": 30,
     "frame_gap": 40,
     "frame_bottom_margin": 18,
-    "quote_pad_x": 20,
+    "quote_pad_x": 50,
     "quote_preview": "Kualitas bukan kebetulan, selalu hasil dari usaha yang cerdas."
   }
 }
