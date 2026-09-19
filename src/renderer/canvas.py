@@ -487,12 +487,11 @@ def render_apel(
         draw.text((title_x, title_y), line, font=fnt_title, fill=(255, 255, 255, 255))
         title_y += lh_t
 
-    # 6. Info rows: lokasi dan tanggal dengan pill transparan + ikon PIL
+    # 6. Info: lokasi + tanggal dalam SATU baris  [pin] Lokasi  |  [cal] Tanggal
     fnt_info = _bold(INFO_FSIZE)
-    bb_i = fnt_info.getbbox("A")
-    text_h = bb_i[3] - bb_i[1]
-    info_x = INFO_X
-    info_y = title_y + INFO_GAP
+    bb_i     = fnt_info.getbbox("A")
+    text_h   = bb_i[3] - bb_i[1]
+    info_y   = title_y + INFO_GAP
 
     loc_text = location or "UPTD Puskesmas Cipatujah"
     date_str = (
@@ -500,81 +499,73 @@ def render_apel(
         f"{event_date.day} {BULAN[event_date.month]} {event_date.year}"
     )
 
-    # ICON_SZ, PILL_PAD_X, PILL_PAD_Y sudah di-set dari config di atas
+    SEP   = "   |   "
+    loc_w = _tw(loc_text, fnt_info)
+    sep_w = _tw(SEP,      fnt_info)
+    dat_w = _tw(date_str, fnt_info)
 
-    def _draw_info_pill(canvas_in, text, icon_type, y):
-        tw = _tw(text, fnt_info)
-        pill_h = text_h + PILL_PAD_Y * 2
-        pill_w = PILL_PAD_X + ICON_SZ + 8 + tw + PILL_PAD_X
-        pill_x0, pill_y0 = info_x, y
-        pill_x1, pill_y1 = pill_x0 + pill_w, pill_y0 + pill_h
+    pill_h = text_h + PILL_PAD_Y * 2
+    row_w  = PILL_PAD_X + ICON_SZ + 8 + loc_w + sep_w + ICON_SZ + 8 + dat_w + PILL_PAD_X
 
-        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        ld = ImageDraw.Draw(layer)
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ld    = ImageDraw.Draw(layer)
+    px0, py0 = INFO_X, info_y
+    px1, py1 = px0 + row_w, py0 + pill_h
+    ld.rounded_rectangle([(px0, py0), (px1, py1)], radius=pill_h // 2, fill=(255, 255, 255, 55))
 
-        ld.rounded_rectangle(
-            [(pill_x0, pill_y0), (pill_x1, pill_y1)],
-            radius=pill_h // 2,
-            fill=(255, 255, 255, 55),
-        )
+    iy = py0 + (pill_h - ICON_SZ) // 2
+    ty = py0 + PILL_PAD_Y - bb_i[1]
+    cx = px0 + PILL_PAD_X
 
-        icon_x = pill_x0 + PILL_PAD_X
-        icon_y = pill_y0 + (pill_h - ICON_SZ) // 2
+    # Pin icon (lokasi)
+    pin_file = ASSETS_DIR / "icons" / "icon_pin.png"
+    if pin_file.exists():
+        from PIL import ImageOps as _IO
+        _p  = Image.open(pin_file).convert("L")
+        _p  = _IO.invert(_p)
+        _pw = Image.new("RGBA", _p.size, (255, 255, 255, 255))
+        _pw.putalpha(_p)
+        _pw = _pw.resize((ICON_SZ, ICON_SZ), Image.LANCZOS)
+        layer.paste(_pw, (cx, iy), _pw.split()[3])
+    else:
+        IC = ICON_SZ * 4
+        ic_img = Image.new("RGBA", (IC, IC), (0, 0, 0, 0))
+        icd = ImageDraw.Draw(ic_img)
+        HCX, HR = IC // 2, int(IC * 0.40)
+        HCY = int(IC * 0.40)
+        icd.ellipse([(HCX-HR, HCY-HR), (HCX+HR, HCY+HR)], fill=(255, 255, 255, 220))
+        icd.polygon([
+            (HCX - int(IC*0.16), HCY + int(IC*0.24)),
+            (HCX + int(IC*0.16), HCY + int(IC*0.24)),
+            (HCX, IC - int(IC*0.05)),
+        ], fill=(255, 255, 255, 220))
+        HOLE_R = int(HR * 0.40)
+        icd.ellipse([(HCX-HOLE_R, HCY-HOLE_R), (HCX+HOLE_R, HCY+HOLE_R)], fill=(0, 0, 0, 0))
+        ic_img = ic_img.resize((ICON_SZ, ICON_SZ), Image.LANCZOS)
+        layer.paste(ic_img, (cx, iy), ic_img.split()[3])
+    cx += ICON_SZ + 8
+    ld.text((cx, ty), loc_text, font=fnt_info, fill=(255, 255, 255, 255))
+    cx += loc_w
 
-        if icon_type == "pin":
-            pin_file = ASSETS_DIR / "icons" / "icon_pin.png"
-            if pin_file.exists():
-                from PIL import ImageOps as _IO
-                _p = Image.open(pin_file).convert("L")
-                _p = _IO.invert(_p)
-                _pw = Image.new("RGBA", _p.size, (255, 255, 255, 255))
-                _pw.putalpha(_p)
-                _pw = _pw.resize((ICON_SZ, ICON_SZ), Image.LANCZOS)
-                layer.paste(_pw, (icon_x, icon_y), _pw.split()[3])
-            else:
-                # Teardrop fallback: render 4x, resize down
-                IC = ICON_SZ * 4
-                ic_img = Image.new("RGBA", (IC, IC), (0, 0, 0, 0))
-                icd = ImageDraw.Draw(ic_img)
-                HCX, HR = IC // 2, int(IC * 0.40)
-                HCY = int(IC * 0.40)
-                icd.ellipse([(HCX-HR, HCY-HR), (HCX+HR, HCY+HR)],
-                             fill=(255, 255, 255, 220))
-                icd.polygon([
-                    (HCX - int(IC*0.16), HCY + int(IC*0.24)),
-                    (HCX + int(IC*0.16), HCY + int(IC*0.24)),
-                    (HCX, IC - int(IC*0.05)),
-                ], fill=(255, 255, 255, 220))
-                HOLE_R = int(HR * 0.40)
-                icd.ellipse([(HCX-HOLE_R, HCY-HOLE_R), (HCX+HOLE_R, HCY+HOLE_R)],
-                             fill=(0, 0, 0, 0))
-                ic_img = ic_img.resize((ICON_SZ, ICON_SZ), Image.LANCZOS)
-                layer.paste(ic_img, (icon_x, icon_y), ic_img.split()[3])
-        else:
-            bx0, by0 = icon_x, icon_y
-            bx1, by1 = icon_x + ICON_SZ, icon_y + ICON_SZ
-            ld.rounded_rectangle([(bx0, by0), (bx1, by1)],
-                                   radius=2, fill=(255, 255, 255, 220))
-            ld.rounded_rectangle([(bx0, by0), (bx1, by0 + 6)],
-                                   radius=2, fill=(80, 120, 200, 255))
-            for col in range(3):
-                for row in range(2):
-                    dx = bx0 + 3 + col * 6
-                    dy = by0 + 9 + row * 6
-                    ld.rectangle([(dx, dy), (dx + 3, dy + 3)],
-                                  fill=(50, 80, 160, 200))
+    # Separator
+    ld.text((cx, ty), SEP, font=fnt_info, fill=(255, 255, 255, 130))
+    cx += sep_w
 
-        # Koreksi bb_i[1] agar teks tepat di tengah pill secara visual
-        text_x = icon_x + ICON_SZ + 8
-        text_y = pill_y0 + PILL_PAD_Y - bb_i[1]
-        ld.text((text_x, text_y), text, font=fnt_info, fill=(255, 255, 255, 255))
+    # Calendar icon (tanggal)
+    bx0_c, by0_c = cx, iy
+    bx1_c, by1_c = cx + ICON_SZ, iy + ICON_SZ
+    ld.rounded_rectangle([(bx0_c, by0_c), (bx1_c, by1_c)], radius=2, fill=(255, 255, 255, 220))
+    ld.rounded_rectangle([(bx0_c, by0_c), (bx1_c, by0_c + 6)], radius=2, fill=(80, 120, 200, 255))
+    for col in range(3):
+        for row in range(2):
+            dx = bx0_c + 3 + col * 6
+            dy = by0_c + 9 + row * 6
+            ld.rectangle([(dx, dy), (dx + 3, dy + 3)], fill=(50, 80, 160, 200))
+    cx += ICON_SZ + 8
+    ld.text((cx, ty), date_str, font=fnt_info, fill=(255, 255, 255, 255))
 
-        return Image.alpha_composite(canvas_in, layer), pill_h + 6
-
-    canvas, dy1 = _draw_info_pill(canvas, loc_text, "pin", info_y)
-    info_y += dy1
-    canvas, dy2 = _draw_info_pill(canvas, date_str, "cal", info_y)
-    info_y += dy2
+    canvas = Image.alpha_composite(canvas, layer)
+    info_y += pill_h + 6
 
     # 7. Frame outline mengelilingi kolase + quote
     frame_x0, frame_x1 = FRAME_PAD, W - FRAME_PAD
@@ -615,41 +606,48 @@ def render_apel(
         }
         _place_photos(canvas_rgb, ImageDraw.Draw(canvas_rgb), collage_photos, fake_cfg)
 
-    # 9. Quote dengan pill transparan + teks rata tengah
+    # 9. Quote: pill lebar + garis dekoratif kiri-kanan + italic bold
     canvas = canvas_rgb.convert("RGBA")
     if quote:
-        fnt_quote = _font(Q_FSIZE)
-        frame_w = frame_x1 - frame_x0
-        q_lines = _wrap(f'"{quote}"', fnt_quote, frame_w - 80)
-        bb_q = fnt_quote.getbbox("A")
-        lh_q = (bb_q[3] - bb_q[1]) + 5
+        fnt_quote = _italic_bold(Q_FSIZE)
+        frame_w   = frame_x1 - frame_x0
+        frame_cx  = (frame_x0 + frame_x1) // 2
+        q_lines   = _wrap(f'"{quote}"', fnt_quote, frame_w - 100)
+        bb_q      = fnt_quote.getbbox("A")
+        lh_q      = (bb_q[3] - bb_q[1]) + 5
         q_total_h = len(q_lines) * lh_q
 
-        Q_PAD_X, Q_PAD_Y = 20, 10
-        pill_area_y0 = frame_y1 - QUOTE_H
-        q_pill_y0 = pill_area_y0 + (QUOTE_H - q_total_h - Q_PAD_Y * 2) // 2
-        q_pill_y1 = q_pill_y0 + q_total_h + Q_PAD_Y * 2
+        Q_PAD_Y   = 12
+        q_pill_x0 = frame_x0 + 20
+        q_pill_x1 = frame_x1 - 20
 
-        max_qw = max(_tw(ln, fnt_quote) for ln in q_lines)
-        frame_cx = (frame_x0 + frame_x1) // 2
-        q_pill_x0 = frame_cx - max_qw // 2 - Q_PAD_X
-        q_pill_x1 = frame_cx + max_qw // 2 + Q_PAD_X
+        pill_area_y0 = frame_y1 - QUOTE_H
+        q_pill_y0    = pill_area_y0 + (QUOTE_H - q_total_h - Q_PAD_Y * 2) // 2
+        q_pill_y1    = q_pill_y0 + q_total_h + Q_PAD_Y * 2
 
         q_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         ImageDraw.Draw(q_layer).rounded_rectangle(
             [(q_pill_x0, q_pill_y0), (q_pill_x1, q_pill_y1)],
-            radius=12,
+            radius=14,
             fill=(255, 255, 255, 45),
         )
         canvas = Image.alpha_composite(canvas, q_layer)
 
-        d_q = ImageDraw.Draw(canvas)
-        q_y = q_pill_y0 + Q_PAD_Y - bb_q[1]
+        d_q   = ImageDraw.Draw(canvas)
+        q_y   = q_pill_y0 + Q_PAD_Y - bb_q[1]
+        L_PAD = 22
+        L_GAP = 12
         for ln in q_lines:
-            d_q.text(
-                (frame_cx - _tw(ln, fnt_quote) // 2, q_y),
-                ln, font=fnt_quote, fill=(220, 220, 220, 255),
-            )
+            lx  = frame_cx - _tw(ln, fnt_quote) // 2
+            rx  = frame_cx + _tw(ln, fnt_quote) // 2
+            mid = q_y + (bb_q[3] - bb_q[1]) // 2
+            if lx - L_GAP > q_pill_x0 + L_PAD:
+                d_q.line([(q_pill_x0 + L_PAD, mid), (lx - L_GAP, mid)],
+                          fill=(200, 200, 200, 140), width=1)
+            if rx + L_GAP < q_pill_x1 - L_PAD:
+                d_q.line([(rx + L_GAP, mid), (q_pill_x1 - L_PAD, mid)],
+                          fill=(200, 200, 200, 140), width=1)
+            d_q.text((lx, q_y), ln, font=fnt_quote, fill=(220, 220, 220, 255))
             q_y += lh_q
 
     result = canvas.convert("RGB")
