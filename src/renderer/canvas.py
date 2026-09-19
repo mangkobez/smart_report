@@ -528,7 +528,7 @@ def render_apel(
     ld    = ImageDraw.Draw(layer)
     px0, py0 = INFO_X, info_y
 
-    iy = py0 + (PILL_PAD_Y + text_h - ICON_SZ) // 2
+    iy = py0 + (text_h - ICON_SZ) // 2
     ty = py0 - bb_i[1]
     cx = px0
 
@@ -640,20 +640,18 @@ def render_apel(
         q_pill_y0    = pill_area_y0 + (QUOTE_H - q_total_h - Q_PAD_Y * 2) // 2
         q_pill_y1    = q_pill_y0 + q_total_h + Q_PAD_Y * 2
 
-        d_q   = ImageDraw.Draw(canvas)
-        q_y   = q_pill_y0 + Q_PAD_Y - bb_q[1]
-        L_PAD = 22
-        L_GAP = 12
+        d_q    = ImageDraw.Draw(canvas)
+        q_y    = q_pill_y0 + Q_PAD_Y - bb_q[1]
+        LINSET = 28
+        line_c = (200, 200, 200, 110)
+        d_q.line([(q_pill_x0 + LINSET, q_pill_y0 + Q_PAD_Y // 2),
+                  (q_pill_x1 - LINSET, q_pill_y0 + Q_PAD_Y // 2)],
+                 fill=line_c, width=1)
+        d_q.line([(q_pill_x0 + LINSET, q_pill_y1 - Q_PAD_Y // 2),
+                  (q_pill_x1 - LINSET, q_pill_y1 - Q_PAD_Y // 2)],
+                 fill=line_c, width=1)
         for ln in q_lines:
-            lx  = frame_cx - _tw(ln, fnt_quote) // 2
-            rx  = frame_cx + _tw(ln, fnt_quote) // 2
-            mid = q_y + (bb_q[3] - bb_q[1]) // 2
-            if lx - L_GAP > q_pill_x0 + L_PAD:
-                d_q.line([(q_pill_x0 + L_PAD, mid), (lx - L_GAP, mid)],
-                          fill=(200, 200, 200, 140), width=1)
-            if rx + L_GAP < q_pill_x1 - L_PAD:
-                d_q.line([(rx + L_GAP, mid), (q_pill_x1 - L_PAD, mid)],
-                          fill=(200, 200, 200, 140), width=1)
+            lx = frame_cx - _tw(ln, fnt_quote) // 2
             d_q.text((lx, q_y), ln, font=fnt_quote, fill=(220, 220, 220, 255))
             q_y += lh_q
 
