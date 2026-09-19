@@ -434,8 +434,9 @@ def render_apel(
     INFO_FSIZE   = ac.get("info_font_size",  25)
     ICON_SZ      = ac.get("icon_sz",         22)
     FRAME_PAD    = ac.get("frame_pad",       34)
-    QUOTE_H      = ac.get("quote_h",        115)
-    Q_FSIZE      = ac.get("quote_font_size", 24)
+    QUOTE_H      = ac.get("quote_h",         115)
+    Q_FSIZE      = ac.get("quote_font_size",  24)
+    QUOTE_PAD_X  = ac.get("quote_pad_x",      20)
     FOOTER_RATIO = ac.get("footer_ratio",  0.09)
     INFO_GAP     = ac.get("info_gap",             12)
     FRAME_GAP    = ac.get("frame_gap",            16)
@@ -632,8 +633,8 @@ def render_apel(
         q_total_h = len(q_lines) * lh_q
 
         Q_PAD_Y   = 12
-        q_pill_x0 = frame_x0 + 20
-        q_pill_x1 = frame_x1 - 20
+        q_pill_x0 = frame_x0 + QUOTE_PAD_X
+        q_pill_x1 = frame_x1 - QUOTE_PAD_X
 
         pill_area_y0 = frame_y1 - QUOTE_H
         q_pill_y0    = pill_area_y0 + (QUOTE_H - q_total_h - Q_PAD_Y * 2) // 2

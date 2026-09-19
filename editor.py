@@ -187,15 +187,16 @@ def _placeholder_photos(n: int) -> list[Image.Image]:
     return imgs
 
 
-def do_preview(tpl: str, n: int, title: str, location: str, tpl_type: str = "kegiatan") -> Image.Image | None:
+def do_preview(tpl: str, n: int, title: str, location: str, tpl_type: str = "kegiatan", quote: str = "") -> Image.Image | None:
     try:
         import src.renderer.canvas as _canvas
         importlib.reload(_canvas)
         if tpl_type == "apel":
+            q = quote or "Kualitas bukan kebetulan, selalu hasil dari usaha yang cerdas."
             return _canvas.render_apel(
                 title=title, photos=_placeholder_photos(n),
                 event_date=date.today(), location=location,
-                quote="Kualitas bukan kebetulan, selalu hasil dari usaha yang cerdas.",
+                quote=q,
                 template=tpl,
             )
         return _canvas.render_doc(
@@ -582,9 +583,16 @@ with t_layout:
                 apel_fp2       = oc.number_input("Padding kiri-kanan frame", value=int(ac.get("frame_pad",            34)), step=2, key=f"{K}_afp2")
 
                 st.markdown("#### Quote")
-                qa, qb = st.columns(2)
-                apel_quote_h  = qa.number_input("Tinggi area quote (px)", value=int(ac.get("quote_h",          115)), step=5, key=f"{K}_aqh")
-                apel_quote_sz = qb.number_input("Ukuran font quote",      value=int(ac.get("quote_font_size",   24)), step=1, key=f"{K}_aqsz")
+                apel_quote_text = st.text_area(
+                    "Teks quote (preview):",
+                    value=ac.get("quote_preview", "Kualitas bukan kebetulan, selalu hasil dari usaha yang cerdas."),
+                    height=80, key=f"{K}_aqtxt",
+                    help="Hanya untuk preview editor — teks asli dikirim dari Telegram",
+                )
+                qa, qb, qc = st.columns(3)
+                apel_quote_h   = qa.number_input("Tinggi area (px)",  value=int(ac.get("quote_h",          115)), step=5, key=f"{K}_aqh")
+                apel_quote_sz  = qb.number_input("Ukuran font",       value=int(ac.get("quote_font_size",   24)), step=1, key=f"{K}_aqsz")
+                apel_quote_pad = qc.number_input("Padding kiri-kanan",value=int(ac.get("quote_pad_x",       20)), step=5, key=f"{K}_aqpx")
 
                 with st.expander("Efek visual (blur, overlay, gradien)"):
                     ea, eb, ec = st.columns(3)
@@ -599,6 +607,8 @@ with t_layout:
                     "frame_gap": apel_frame_gap, "frame_bottom_margin": apel_frame_bot,
                     "frame_pad": apel_fp2,
                     "quote_h": apel_quote_h, "quote_font_size": apel_quote_sz,
+                    "quote_pad_x": apel_quote_pad,
+                    "quote_preview": apel_quote_text,
                     "blur_radius": apel_blur, "dark_alpha": apel_dark, "grad_alpha": apel_grad,
                 }
                 # Nilai dummy untuk _build_new_cfg (standard sections diabaikan oleh render_apel)
@@ -671,6 +681,14 @@ with t_layout:
                 "Lokasi preview:", value="Aula UPTD Puskesmas Cipatujah", key="prev_loc"
             )
             prev_n = st.slider("Jumlah foto:", 1, 9, 4, key="prev_n")
+            if tpl_type == "apel":
+                prev_quote = st.text_area(
+                    "Teks quote preview:", key="prev_quote",
+                    value=ac.get("quote_preview", "Kualitas bukan kebetulan, selalu hasil dari usaha yang cerdas."),
+                    height=80,
+                )
+            else:
+                prev_quote = ""
 
             if st.button("🔄  Render Preview", use_container_width=True, type="primary", key="render_btn"):
                 # Auto-simpan config sebelum render agar renderer membaca nilai terbaru
@@ -686,7 +704,7 @@ with t_layout:
                 save_meta(meta)
 
                 with st.spinner("Rendering..."):
-                    img = do_preview(selected, prev_n, prev_title, prev_loc, tpl_type)
+                    img = do_preview(selected, prev_n, prev_title, prev_loc, tpl_type, quote=prev_quote)
                 if img:
                     buf = io.BytesIO()
                     img.save(buf, "JPEG", quality=88)

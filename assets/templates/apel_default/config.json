@@ -41,7 +41,7 @@
   "apel": {
     "title_x": 52,
     "title_y": 129,
-    "title_size": 68,
+    "title_size": 50,
     "info_x": 52,
     "info_font_size": 22,
     "icon_sz": 22,
@@ -50,10 +50,11 @@
     "grad_alpha": 115,
     "frame_pad": 54,
     "quote_h": 115,
-    "quote_font_size": 24,
+    "quote_font_size": 28,
     "footer_ratio": 0.09,
     "info_gap": 30,
     "frame_gap": 40,
-    "frame_bottom_margin": 18
+    "frame_bottom_margin": 18,
+    "quote_pad_x": 20
   }
 }
