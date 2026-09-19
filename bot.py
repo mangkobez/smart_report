@@ -26,7 +26,7 @@ if not TOKEN:
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.bot.handlers import start, photo, text_message, done, batal, cmd_lokasi, cmd_tanggal, cmd_log, cmd_myid
+from src.bot.handlers import start, photo, text_message, done, batal, cmd_lokasi, cmd_tanggal, cmd_log, cmd_myid, cmd_update
 from src.bot.conversation import build as build_conv
 
 
@@ -41,6 +41,7 @@ def main() -> None:
     app.add_handler(CommandHandler("tanggal", cmd_tanggal))
     app.add_handler(CommandHandler("log",     cmd_log))
     app.add_handler(CommandHandler("myid",   cmd_myid))
+    app.add_handler(CommandHandler("update", cmd_update))
     app.add_handler(MessageHandler(filters.PHOTO,                   photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_message))
 

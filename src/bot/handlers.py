@@ -1,5 +1,7 @@
 import io
 import os
+import sys
+import subprocess
 from datetime import date, datetime
 from pathlib import Path
 
@@ -397,6 +399,48 @@ async def cmd_log(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Aktivitas terakhir:\n\n" + "\n".join(last),
         parse_mode=None,
     )
+
+
+async def cmd_update(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin only: git pull lalu restart bot otomatis."""
+    if ADMIN_CHAT_ID and str(update.effective_chat.id) != ADMIN_CHAT_ID:
+        await update.message.reply_text("⛔ Perintah ini hanya untuk admin.")
+        return
+
+    await update.message.reply_text("⏳ Menjalankan `git pull`...", parse_mode="Markdown")
+
+    base_dir = Path(__file__).parent.parent.parent
+    try:
+        result = subprocess.run(
+            ["git", "pull"],
+            capture_output=True, text=True, timeout=30,
+            cwd=str(base_dir),
+        )
+        output = (result.stdout + result.stderr).strip() or "(tidak ada output)"
+        if result.returncode == 0:
+            await update.message.reply_text(
+                f"✅ *Update berhasil*\n```\n{output[:500]}\n```\n\nBot restart dalam 3 detik...",
+                parse_mode="Markdown",
+            )
+        else:
+            await update.message.reply_text(
+                f"❌ *Git pull gagal*\n```\n{output[:500]}\n```",
+                parse_mode="Markdown",
+            )
+            return
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+        return
+
+    import asyncio
+    await asyncio.sleep(3)
+
+    subprocess.Popen(
+        [sys.executable, "-u", "bot.py"],
+        cwd=str(base_dir),
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    os._exit(0)
 
 
 async def batal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
