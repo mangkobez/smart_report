@@ -7,6 +7,7 @@ import io
 import json
 import re
 import shutil
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -813,6 +814,57 @@ with t_bot:
         "2. Cari proses **python.exe** → klik kanan → End Task\n"
         "3. Klik dua kali **run_bot_hidden.vbs**"
     )
+
+    st.markdown("---")
+    st.markdown("#### 🚀 Push ke Git")
+    st.caption(
+        "Commit dan push semua perubahan (config, editor, renderer) ke GitHub, "
+        "lalu ketik **/update** di bot agar bot PC ikut sinkron."
+    )
+
+    def _git(cmd: list[str]) -> tuple[int, str]:
+        r = subprocess.run(
+            ["git"] + cmd, cwd=str(BASE_DIR),
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+        return r.returncode, (r.stdout + r.stderr).strip()
+
+    # Status file yang berubah
+    _, status_out = _git(["status", "--short"])
+    changed_lines = [l for l in status_out.splitlines() if l.strip()]
+    if changed_lines:
+        st.markdown("**File yang akan di-commit:**")
+        st.code("\n".join(changed_lines), language="bash")
+    else:
+        st.success("✅ Tidak ada perubahan — repo sudah up-to-date.")
+
+    with st.form("git_push_form", border=True):
+        commit_msg = st.text_input(
+            "Pesan commit:",
+            placeholder="update config & layout apel",
+            help="Tulis singkat apa yang diubah",
+        )
+        pushed = st.form_submit_button(
+            "📤  Commit & Push", use_container_width=True, type="primary",
+            disabled=not changed_lines,
+        )
+
+    if pushed:
+        if not commit_msg.strip():
+            st.warning("Isi pesan commit dulu.")
+        else:
+            with st.spinner("Menjalankan git..."):
+                rc1, out1 = _git(["add", "-A"])
+                rc2, out2 = _git(["commit", "-m", commit_msg.strip()])
+                rc3, out3 = _git(["push"])
+            if rc2 != 0 and "nothing to commit" in out2:
+                st.info("Tidak ada yang perlu di-commit.")
+            elif rc3 != 0:
+                st.error(f"Push gagal:\n```\n{out3}\n```")
+            else:
+                st.success("✅ Berhasil push! Ketik **/update** di bot untuk sync.")
+                st.code(out3 or out2, language="bash")
+                st.rerun()
 
 
 # =============================================================================
