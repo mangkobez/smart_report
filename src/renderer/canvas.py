@@ -435,6 +435,7 @@ def render_apel(
     ICON_SZ      = ac.get("icon_sz",         22)
     FRAME_PAD    = ac.get("frame_pad",       34)
     QUOTE_H      = ac.get("quote_h",         155)
+    QUOTE_Y_PAD  = ac.get("quote_y_pad",      36)
     Q_FSIZE      = ac.get("quote_font_size",  24)
     QUOTE_PAD_X  = ac.get("quote_pad_x",      20)
     FOOTER_RATIO = ac.get("footer_ratio",  0.09)
@@ -602,7 +603,7 @@ def render_apel(
     photo_x0 = frame_x0 + INNER
     photo_y0 = frame_y0 + INNER
     photo_x1 = frame_x1 - INNER
-    photo_y1 = frame_y1 - QUOTE_H - INNER
+    photo_y1 = frame_y1 - QUOTE_H - QUOTE_Y_PAD - INNER
 
     canvas_rgb = canvas.convert("RGB")
     if collage_photos:
@@ -622,7 +623,7 @@ def render_apel(
         _place_photos(canvas_rgb, ImageDraw.Draw(canvas_rgb), collage_photos, fake_cfg)
 
 
-    # 9. Quote: box STATIS + tanda petik di pojok tetap, teks di-center vertikal
+    # 9. Quote: composite overlay statis (box + marks) + teks dinamis di atasnya
     canvas = canvas_rgb.convert("RGBA")
     if quote:
         fnt_quote  = _lora_italic(Q_FSIZE)
@@ -633,46 +634,12 @@ def render_apel(
         lh_q       = (bb_q[3] - bb_q[1]) + 12
         q_total_h  = max(1, len(q_lines)) * lh_q - 12
 
-        QM_SIZE    = max(72, Q_FSIZE + 44)
-        fnt_qm     = _lora_italic(QM_SIZE)
-        OPEN_CHAR  = '“'
-        CLOSE_CHAR = '”'
-        bb_o       = fnt_qm.getbbox(OPEN_CHAR)
-        bb_c       = fnt_qm.getbbox(CLOSE_CHAR)
-        cl_w       = bb_c[2] - bb_c[0]
-        cl_h       = bb_c[3] - bb_c[1]
-
-        # Box STATIS — ukuran tetap, tidak berubah sesuai panjang teks
-        q_pill_x0 = frame_x0 + QUOTE_PAD_X
-        q_pill_x1 = frame_x1 - QUOTE_PAD_X
-        q_pill_y0 = frame_y1 - QUOTE_H
-        q_pill_y1 = frame_y1
-
-        # Box semi-transparan via alpha_composite
-        q_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        ImageDraw.Draw(q_layer).rounded_rectangle(
-            [(q_pill_x0, q_pill_y0), (q_pill_x1, q_pill_y1)],
-            radius=12, fill=(255, 255, 255, 35)
-        )
-        canvas = Image.alpha_composite(canvas, q_layer)
-        d_q = ImageDraw.Draw(canvas)
-
-        # Tanda petik statis — setengah di luar box, setengah di dalam
-        # Center glyph secara vertikal pada tepi atas (opening) dan bawah (closing)
-        oy = q_pill_y0 - (bb_o[1] + bb_o[3]) // 2
-        cy = q_pill_y1 - (bb_c[1] + bb_c[3]) // 2
-        d_q.text(
-            (q_pill_x0 + 10, oy),
-            OPEN_CHAR, font=fnt_qm, fill=(255, 255, 255, 255)
-        )
-        d_q.text(
-            (q_pill_x1 - cl_w - 10, cy),
-            CLOSE_CHAR, font=fnt_qm, fill=(255, 255, 255, 255)
-        )
-
-        # Teks di-center vertikal dalam box
-        text_start_y = q_pill_y0 + (QUOTE_H - q_total_h) // 2
+        # Box dan marks sudah ada di overlay.png — di sini hanya teks
+        q_pill_y0 = frame_y1 - QUOTE_H - QUOTE_Y_PAD
+        Q_TEXT_CY = ac.get("quote_text_cy", q_pill_y0 + QUOTE_H // 2)
+        text_start_y = Q_TEXT_CY - q_total_h // 2
         q_y = text_start_y - bb_q[1]
+        d_q = ImageDraw.Draw(canvas)
         for ln in q_lines:
             lx = frame_cx - _tw(ln, fnt_quote) // 2
             d_q.text((lx, q_y), ln, font=fnt_quote, fill=(255, 255, 255, 255))

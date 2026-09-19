@@ -189,8 +189,12 @@ def _placeholder_photos(n: int) -> list[Image.Image]:
 
 def do_preview(tpl: str, n: int, title: str, location: str, tpl_type: str = "kegiatan", quote: str = "") -> Image.Image | None:
     try:
+        import sys
+        # Force remove from sys.modules so Python re-reads file from disk
+        for key in list(sys.modules.keys()):
+            if "renderer.canvas" in key or key == "src.renderer.canvas":
+                del sys.modules[key]
         import src.renderer.canvas as _canvas
-        importlib.reload(_canvas)
         if tpl_type == "apel":
             q = quote or "Kualitas bukan kebetulan, selalu hasil dari usaha yang cerdas."
             return _canvas.render_apel(
@@ -590,9 +594,14 @@ with t_layout:
                     help="Hanya untuk preview editor — teks asli dikirim dari Telegram",
                 )
                 qa, qb, qc = st.columns(3)
-                apel_quote_h   = qa.number_input("Tinggi area (px)",  value=int(ac.get("quote_h",          115)), step=5, key=f"{K}_aqh")
-                apel_quote_sz  = qb.number_input("Ukuran font",       value=int(ac.get("quote_font_size",   24)), step=1, key=f"{K}_aqsz")
-                apel_quote_pad = qc.number_input("Padding kiri-kanan",value=int(ac.get("quote_pad_x",       20)), step=5, key=f"{K}_aqpx")
+                apel_quote_h    = qa.number_input("Tinggi box (px)",   value=int(ac.get("quote_h",          135)), step=5, key=f"{K}_aqh")
+                apel_quote_sz   = qb.number_input("Ukuran font",      value=int(ac.get("quote_font_size",   28)), step=1, key=f"{K}_aqsz")
+                apel_quote_pad  = qc.number_input("Pad kiri-kanan",   value=int(ac.get("quote_pad_x",       50)), step=5, key=f"{K}_aqpx")
+                qd, qe, _ = st.columns(3)
+                apel_quote_ypad = qd.number_input("Jarak dari bawah (px)", value=int(ac.get("quote_y_pad", 36)), step=4, key=f"{K}_aqyp",
+                                                  help="Jarak antara bawah box quote dan garis frame")
+                apel_quote_text_cy = qe.number_input("Posisi teks (Y tengah)", value=int(ac.get("quote_text_cy", 1107)), step=5, key=f"{K}_aqcy",
+                                                     help="Y center teks quote dalam canvas 1080x1350")
 
                 with st.expander("Efek visual (blur, overlay, gradien)"):
                     ea, eb, ec = st.columns(3)
@@ -606,7 +615,9 @@ with t_layout:
                     "info_gap": apel_info_gap,
                     "frame_gap": apel_frame_gap, "frame_bottom_margin": apel_frame_bot,
                     "frame_pad": apel_fp2,
-                    "quote_h": apel_quote_h, "quote_font_size": apel_quote_sz,
+                    "quote_h": apel_quote_h, "quote_y_pad": apel_quote_ypad,
+                    "quote_text_cy": apel_quote_text_cy,
+                    "quote_font_size": apel_quote_sz,
                     "quote_pad_x": apel_quote_pad,
                     "quote_preview": apel_quote_text,
                     "blur_radius": apel_blur, "dark_alpha": apel_dark, "grad_alpha": apel_grad,
