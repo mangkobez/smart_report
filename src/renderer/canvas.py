@@ -400,12 +400,12 @@ def render_apel(
     template: str = "apel_default",
     output_path: str | Path | None = None,
 ) -> Image.Image:
-    """Render template Apel Pagi: background blur + overlay + kolase + quote."""
+    """Render template Apel Pagi: background blur + overlay + frame kolase + quote."""
     from PIL import ImageFilter
 
     W, H = 1080, 1350
 
-    # Foto background untuk blur, semua foto masuk kolase
+    # Foto background dan kolase (semua foto masuk kolase)
     if photos:
         bg_idx = max(0, min(bg_idx, len(photos) - 1))
         bg_photo = photos[bg_idx]
@@ -414,134 +414,126 @@ def render_apel(
         bg_photo = None
         collage_photos = []
 
-    # 1. Background: foto di-blur (radius dikurangi)
+    # 1. Background: foto di-blur, mengisi penuh canvas
     if bg_photo:
         bg = smart_crop(bg_photo, W, H).convert("RGBA")
     else:
         bg = Image.new("RGBA", (W, H), (15, 35, 65, 255))
     bg = bg.filter(ImageFilter.GaussianBlur(radius=10))
 
-    # 2. Dark navy overlay (lebih ringan)
-    dark = Image.new("RGBA", (W, H), (15, 35, 65, 90))
+    # 2. Dark overlay ringan agar background tetap terlihat
+    dark = Image.new("RGBA", (W, H), (15, 35, 65, 75))
     canvas = Image.alpha_composite(bg, dark)
 
-    # 3. Tempel overlay.png — hanya strip header (atas) dan footer (bawah)
-    #    Pendekatan ini mempertahankan background putih logo/footer tanpa dihapus
+    # 3. Tempel overlay.png langsung — overlay sudah punya alpha channel yang benar,
+    #    tidak perlu dihapus piksel putihnya karena background sudah transparent (A=0)
     tpl_dir = TEMPLATES_DIR / template
     ovl_path = tpl_dir / "overlay.png"
     if ovl_path.exists():
         ovl = Image.open(ovl_path).convert("RGBA")
         if ovl.size != (W, H):
             ovl = ovl.resize((W, H), Image.LANCZOS)
-        mask = Image.new("L", (W, H), 0)
-        dm = ImageDraw.Draw(mask)
-        dm.rectangle([(0, 0), (W, int(H * 0.10))], fill=255)    # header ~135px
-        dm.rectangle([(0, int(H * 0.91)), (W, H)], fill=255)    # footer ~122px
-        ovl.putalpha(mask)
         canvas = Image.alpha_composite(canvas, ovl)
 
-    # 4. Judul: NotoSans Bold Italic, putih dengan outline, centered + wrapping
+    # 4. Judul: rata kiri, NotoSans Bold Italic, outline tipis
     draw = ImageDraw.Draw(canvas)
-    fnt_title = _italic_bold(52)
+    fnt_title = _italic_bold(44)
     title_lines = _wrap(title.upper(), fnt_title, W - 100)
     bb_t = fnt_title.getbbox("A")
-    lh_t = (bb_t[3] - bb_t[1]) + 10
-    title_y = 145
+    lh_t = (bb_t[3] - bb_t[1]) + 8
+    title_x, title_y = 52, 155
 
     for line in title_lines:
-        tx = W // 2 - _tw(line, fnt_title) // 2
-        for dx, dy in [(-2, -2), (2, -2), (-2, 2), (2, 2), (0, -2), (0, 2), (-2, 0), (2, 0)]:
-            draw.text((tx + dx, title_y + dy), line, font=fnt_title, fill=(0, 0, 0, 230))
-        draw.text((tx, title_y), line, font=fnt_title, fill=(255, 255, 255, 255))
+        for dx, dy in [(-1, -1), (1, -1), (-1, 1), (1, 1)]:
+            draw.text((title_x + dx, title_y + dy), line, font=fnt_title, fill=(0, 0, 0, 180))
+        draw.text((title_x, title_y), line, font=fnt_title, fill=(255, 255, 255, 255))
         title_y += lh_t
 
-    # Helper: gambar pill semi-transparan
-    def _pill(cy: int, text: str, bg_rgba=(255, 255, 255, 110),
-              fnt=None, txt_color=(255, 255, 255, 255), pad_x=26, pad_y=9) -> int:
-        nonlocal canvas
-        f = fnt or _bold(26)
-        tw = _tw(text, f)
-        bb = f.getbbox(text)
-        th = bb[3] - bb[1]
-        pw, ph = tw + pad_x * 2, th + pad_y * 2
-        px0 = W // 2 - pw // 2
-        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        ImageDraw.Draw(layer).rounded_rectangle(
-            [(px0, cy), (px0 + pw, cy + ph)], radius=ph // 2, fill=bg_rgba
-        )
-        canvas = Image.alpha_composite(canvas, layer)
-        ImageDraw.Draw(canvas).text(
-            (W // 2 - tw // 2, cy + pad_y), text, font=f, fill=txt_color
-        )
-        return cy + ph
+    # 5. Info rows: lokasi dan tanggal, rata kiri dengan bullet bulat
+    fnt_info = _bold(25)
+    bb_i = fnt_info.getbbox("A")
+    lh_i = (bb_i[3] - bb_i[1]) + 10
+    info_x = 52
+    info_y = title_y + 10
 
-    # 5. Pill lokasi dan tanggal — posisi dinamis setelah judul
-    fnt_pill = _bold(26)
-    pill_y = title_y + 14
     loc_text = location or "UPTD Puskesmas Cipatujah"
-    pill_y = _pill(pill_y, loc_text, fnt=fnt_pill)
-
     date_str = (
         f"{HARI_ID[event_date.weekday()]}, "
         f"{event_date.day} {BULAN[event_date.month]} {event_date.year}"
     )
-    pill_y = _pill(pill_y + 10, date_str, fnt=fnt_pill)
 
-    # 6. Kotak putih semi-transparan untuk kolase
-    box_x0, box_x1 = 52, 1028
-    box_y0 = pill_y + 22
-    box_y1 = 1055
-    box_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    ImageDraw.Draw(box_layer).rounded_rectangle(
-        [(box_x0, box_y0), (box_x1, box_y1)], radius=22, fill=(255, 255, 255, 195)
+    for row_text in (loc_text, date_str):
+        dot_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(dot_layer).ellipse(
+            [(info_x, info_y + 7), (info_x + 13, info_y + 20)],
+            fill=(255, 255, 255, 200),
+        )
+        canvas = Image.alpha_composite(canvas, dot_layer)
+        draw = ImageDraw.Draw(canvas)
+        draw.text((info_x + 20, info_y), row_text, font=fnt_info, fill=(255, 255, 255, 255))
+        info_y += lh_i
+
+    # 6. Frame outline (border saja, fill sangat transparan) mengelilingi kolase + quote
+    FRAME_PAD = 46
+    frame_x0, frame_x1 = FRAME_PAD, W - FRAME_PAD
+    frame_y0 = info_y + 18
+    footer_h = int(H * 0.09)   # ~121px — setinggi strip footer overlay
+    frame_y1 = H - footer_h - 18
+
+    frame_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(frame_layer).rounded_rectangle(
+        [(frame_x0, frame_y0), (frame_x1, frame_y1)],
+        radius=22,
+        outline=(255, 255, 255, 170),
+        width=3,
+        fill=(255, 255, 255, 18),
     )
-    canvas = Image.alpha_composite(canvas, box_layer)
+    canvas = Image.alpha_composite(canvas, frame_layer)
 
-    # 7. Tempatkan foto kolase
+    # 7. Foto kolase di dalam frame (gap lebih lebar sehingga background terlihat)
+    INNER = 16
+    QUOTE_H = 78
+    photo_x0 = frame_x0 + INNER
+    photo_y0 = frame_y0 + INNER
+    photo_x1 = frame_x1 - INNER
+    photo_y1 = frame_y1 - QUOTE_H - INNER
+
     canvas_rgb = canvas.convert("RGB")
     if collage_photos:
-        PAD = 18
         fake_cfg = {
             "photo_zone": {
-                "x": box_x0 + PAD, "y": box_y0 + PAD,
-                "w": (box_x1 - box_x0) - PAD * 2,
-                "h": (box_y1 - box_y0) - PAD * 2,
+                "x": photo_x0, "y": photo_y0,
+                "w": photo_x1 - photo_x0,
+                "h": photo_y1 - photo_y0,
             },
-            "photo_gap": 14,
-            "corner_r": 12,
-            "border_w": 3,
-            "frame_inner": 0,
+            "photo_gap":  22,
+            "corner_r":   14,
+            "border_w":    3,
+            "frame_inner":  0,
             "frame_corner": 0,
             "frame_color": "none",
         }
         _place_photos(canvas_rgb, ImageDraw.Draw(canvas_rgb), collage_photos, fake_cfg)
 
-    # 8. Quote pill di bawah kotak
+    # 8. Quote: teks rata tengah di dalam area bawah frame
     canvas = canvas_rgb.convert("RGBA")
-    fnt_quote = _font(27)
-    quote_text = f'"{quote}"'
-    lines = _wrap(quote_text, fnt_quote, 940)
-    bb = fnt_quote.getbbox("A")
-    line_h = bb[3] - bb[1] + 6
-    q_total_h = len(lines) * line_h
-    pad_x, pad_y = 30, 12
-    q_max_w = max(_tw(l, fnt_quote) for l in lines)
-    qpw = q_max_w + pad_x * 2
-    qph = q_total_h + pad_y * 2
-    quote_y = box_y1 + 16
-    qx0 = W // 2 - qpw // 2
-    q_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    ImageDraw.Draw(q_layer).rounded_rectangle(
-        [(qx0, quote_y), (qx0 + qpw, quote_y + qph)],
-        radius=min(qph // 2, 30), fill=(0, 0, 0, 100),
-    )
-    canvas = Image.alpha_composite(canvas, q_layer)
-    d_q = ImageDraw.Draw(canvas)
-    ty = quote_y + pad_y
-    for line in lines:
-        d_q.text((W // 2 - _tw(line, fnt_quote) // 2, ty),
-                 line, font=fnt_quote, fill=(220, 220, 220, 255))
-        ty += line_h
+    if quote:
+        fnt_quote = _font(25)
+        frame_w = frame_x1 - frame_x0
+        q_lines = _wrap(f'"{quote}"', fnt_quote, frame_w - 60)
+        bb_q = fnt_quote.getbbox("A")
+        lh_q = (bb_q[3] - bb_q[1]) + 5
+        q_total_h = len(q_lines) * lh_q
+        frame_cx = (frame_x0 + frame_x1) // 2
+        # Posisikan quote di tengah vertikal area QUOTE_H
+        q_y = (frame_y1 - QUOTE_H) + (QUOTE_H - q_total_h) // 2
+        d_q = ImageDraw.Draw(canvas)
+        for ln in q_lines:
+            d_q.text(
+                (frame_cx - _tw(ln, fnt_quote) // 2, q_y),
+                ln, font=fnt_quote, fill=(220, 220, 220, 255),
+            )
+            q_y += lh_q
 
     result = canvas.convert("RGB")
     if output_path:
