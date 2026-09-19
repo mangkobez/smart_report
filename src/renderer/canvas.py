@@ -494,7 +494,10 @@ def render_apel(
     # 5. Judul: rata kiri, Montserrat Black, outline tipis
     draw = ImageDraw.Draw(canvas)
     fnt_title = _montserrat_black(TITLE_SIZE)
-    title_lines = _wrap(title.upper(), fnt_title, W - 100)
+    # Karakter | memaksa line break; tiap segmen di-wrap secara terpisah
+    title_lines = []
+    for seg in [s.strip() for s in title.upper().split("|")]:
+        title_lines.extend(_wrap(seg, fnt_title, W - 100))
     bb_t = fnt_title.getbbox("A")
     lh_t = (bb_t[3] - bb_t[1]) + 8
     title_x, title_y = TITLE_X, TITLE_Y
