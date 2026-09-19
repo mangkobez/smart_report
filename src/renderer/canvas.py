@@ -403,7 +403,32 @@ def render_apel(
     """Render template Apel Pagi: background blur + overlay + frame kolase + quote."""
     from PIL import ImageFilter
 
-    W, H = 1080, 1350
+    # Baca config — nilai di config.json bisa diedit lewat editor web
+    cfg      = _load_config(template) if (TEMPLATES_DIR / template / "config.json").exists() else {}
+    ac       = cfg.get("apel", {})   # section khusus apel
+    W, H     = cfg.get("canvas", {}).get("w", 1080), cfg.get("canvas", {}).get("h", 1350)
+
+    BLUR_R       = ac.get("blur_radius",     10)
+    DARK_ALPHA   = ac.get("dark_alpha",      75)
+    GRAD_ALPHA   = ac.get("grad_alpha",     115)
+    TITLE_X      = ac.get("title_x",         52)
+    TITLE_Y      = ac.get("title_y",        155)
+    TITLE_SIZE   = ac.get("title_size",      44)
+    INFO_X       = ac.get("info_x",          52)
+    INFO_FSIZE   = ac.get("info_font_size",  25)
+    ICON_SZ      = ac.get("icon_sz",         22)
+    FRAME_PAD    = ac.get("frame_pad",       34)
+    QUOTE_H      = ac.get("quote_h",        115)
+    Q_FSIZE      = ac.get("quote_font_size", 24)
+    FOOTER_RATIO = ac.get("footer_ratio",  0.09)
+
+    PHOTO_GAP    = cfg.get("photo_gap",   40)
+    CORNER_R     = cfg.get("corner_r",    14)
+    BORDER_W     = cfg.get("border_w",     3)
+    INNER        = cfg.get("frame_inner", 14)
+    FRAME_CORNER = cfg.get("frame_corner", 22)
+
+    PILL_PAD_X, PILL_PAD_Y = 12, 7
 
     # Foto background dan kolase (semua foto masuk kolase)
     if photos:
@@ -419,17 +444,17 @@ def render_apel(
         bg = smart_crop(bg_photo, W, H).convert("RGBA")
     else:
         bg = Image.new("RGBA", (W, H), (15, 35, 65, 255))
-    bg = bg.filter(ImageFilter.GaussianBlur(radius=10))
+    bg = bg.filter(ImageFilter.GaussianBlur(radius=BLUR_R))
 
     # 2. Dark overlay ringan
-    dark = Image.new("RGBA", (W, H), (15, 35, 65, 75))
+    dark = Image.new("RGBA", (W, H), (15, 35, 65, DARK_ALPHA))
     canvas = Image.alpha_composite(bg, dark)
 
-    # 3. Blue gradient overlay dari kiri ke tengah (warna biru pudar ke transparan)
+    # 3. Blue gradient overlay dari kiri ke tengah
     GRAD_STEPS = 64
     grad_src = Image.new("RGBA", (GRAD_STEPS, 1))
     for i in range(GRAD_STEPS):
-        a = int(115 * (1 - i / (GRAD_STEPS - 1)))
+        a = int(GRAD_ALPHA * (1 - i / (GRAD_STEPS - 1)))
         grad_src.putpixel((i, 0), (15, 40, 90, a))
     grad_layer = grad_src.resize((W // 2 + 100, H), Image.NEAREST)
     grad_canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -447,11 +472,11 @@ def render_apel(
 
     # 5. Judul: rata kiri, NotoSans Bold Italic, outline tipis
     draw = ImageDraw.Draw(canvas)
-    fnt_title = _italic_bold(44)
+    fnt_title = _italic_bold(TITLE_SIZE)
     title_lines = _wrap(title.upper(), fnt_title, W - 100)
     bb_t = fnt_title.getbbox("A")
     lh_t = (bb_t[3] - bb_t[1]) + 8
-    title_x, title_y = 52, 155
+    title_x, title_y = TITLE_X, TITLE_Y
 
     for line in title_lines:
         for dx, dy in [(-1, -1), (1, -1), (-1, 1), (1, 1)]:
@@ -460,10 +485,10 @@ def render_apel(
         title_y += lh_t
 
     # 6. Info rows: lokasi dan tanggal dengan pill transparan + ikon PIL
-    fnt_info = _bold(25)
+    fnt_info = _bold(INFO_FSIZE)
     bb_i = fnt_info.getbbox("A")
     text_h = bb_i[3] - bb_i[1]
-    info_x = 52
+    info_x = INFO_X
     info_y = title_y + 12
 
     loc_text = location or "UPTD Puskesmas Cipatujah"
@@ -472,9 +497,7 @@ def render_apel(
         f"{event_date.day} {BULAN[event_date.month]} {event_date.year}"
     )
 
-    ICON_SZ = 22
-    PILL_PAD_X = 12
-    PILL_PAD_Y = 7
+    # ICON_SZ, PILL_PAD_X, PILL_PAD_Y sudah di-set dari config di atas
 
     def _draw_info_pill(canvas_in, text, icon_type, y):
         tw = _tw(text, fnt_info)
@@ -551,16 +574,15 @@ def render_apel(
     info_y += dy2
 
     # 7. Frame outline mengelilingi kolase + quote
-    FRAME_PAD = 34
     frame_x0, frame_x1 = FRAME_PAD, W - FRAME_PAD
     frame_y0 = info_y + 16
-    footer_h = int(H * 0.09)
+    footer_h = int(H * FOOTER_RATIO)
     frame_y1 = H - footer_h - 18
 
     frame_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ImageDraw.Draw(frame_layer).rounded_rectangle(
         [(frame_x0, frame_y0), (frame_x1, frame_y1)],
-        radius=22,
+        radius=FRAME_CORNER,
         outline=(255, 255, 255, 170),
         width=3,
         fill=(255, 255, 255, 18),
@@ -568,8 +590,6 @@ def render_apel(
     canvas = Image.alpha_composite(canvas, frame_layer)
 
     # 8. Foto kolase di dalam frame (foto landscape, gap lebar)
-    INNER = 14
-    QUOTE_H = 115
     photo_x0 = frame_x0 + INNER
     photo_y0 = frame_y0 + INNER
     photo_x1 = frame_x1 - INNER
@@ -583,9 +603,9 @@ def render_apel(
                 "w": photo_x1 - photo_x0,
                 "h": photo_y1 - photo_y0,
             },
-            "photo_gap":  40,
-            "corner_r":   14,
-            "border_w":    3,
+            "photo_gap":  PHOTO_GAP,
+            "corner_r":   CORNER_R,
+            "border_w":   BORDER_W,
             "frame_inner":  0,
             "frame_corner": 0,
             "frame_color": "none",
@@ -595,7 +615,7 @@ def render_apel(
     # 9. Quote dengan pill transparan + teks rata tengah
     canvas = canvas_rgb.convert("RGBA")
     if quote:
-        fnt_quote = _font(24)
+        fnt_quote = _font(Q_FSIZE)
         frame_w = frame_x1 - frame_x0
         q_lines = _wrap(f'"{quote}"', fnt_quote, frame_w - 80)
         bb_q = fnt_quote.getbbox("A")
