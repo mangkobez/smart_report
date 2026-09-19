@@ -526,12 +526,10 @@ def render_apel(
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ld    = ImageDraw.Draw(layer)
     px0, py0 = INFO_X, info_y
-    px1, py1 = px0 + row_w, py0 + pill_h
-    ld.rounded_rectangle([(px0, py0), (px1, py1)], radius=pill_h // 2, fill=(255, 255, 255, 55))
 
-    iy = py0 + (pill_h - ICON_SZ) // 2
-    ty = py0 + PILL_PAD_Y - bb_i[1]
-    cx = px0 + PILL_PAD_X
+    iy = py0 + (PILL_PAD_Y + text_h - ICON_SZ) // 2
+    ty = py0 - bb_i[1]
+    cx = px0
 
     # Pin icon (lokasi)
     pin_file = ASSETS_DIR / "icons" / "icon_pin.png"
@@ -581,7 +579,7 @@ def render_apel(
     ld.text((cx, ty), date_str, font=fnt_info, fill=(255, 255, 255, 255))
 
     canvas = Image.alpha_composite(canvas, layer)
-    info_y += pill_h + 6
+    info_y += text_h + PILL_PAD_Y * 2 + 6
 
     # 7. Frame outline mengelilingi kolase + quote
     frame_x0, frame_x1 = FRAME_PAD, W - FRAME_PAD
@@ -640,14 +638,6 @@ def render_apel(
         pill_area_y0 = frame_y1 - QUOTE_H
         q_pill_y0    = pill_area_y0 + (QUOTE_H - q_total_h - Q_PAD_Y * 2) // 2
         q_pill_y1    = q_pill_y0 + q_total_h + Q_PAD_Y * 2
-
-        q_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        ImageDraw.Draw(q_layer).rounded_rectangle(
-            [(q_pill_x0, q_pill_y0), (q_pill_x1, q_pill_y1)],
-            radius=14,
-            fill=(255, 255, 255, 45),
-        )
-        canvas = Image.alpha_composite(canvas, q_layer)
 
         d_q   = ImageDraw.Draw(canvas)
         q_y   = q_pill_y0 + Q_PAD_Y - bb_q[1]
