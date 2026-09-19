@@ -63,7 +63,8 @@ def save_config(tpl: str, cfg: dict) -> None:
 def _build_new_cfg(cfg: dict, pz_x, pz_y, pz_w, pz_h,
                    photo_gap, corner_r, border_w, frame_corner, frame_inner, frame_color,
                    t_cx, t_y, t_maxw, t_sz1, t_col1, t_sz2, t_col2, t_lh1, t_lh2,
-                   l_cx, l_y, l_sz, l_col, d_cx, d_y, d_sz, d_col) -> dict:
+                   l_cx, l_y, l_sz, l_col, d_cx, d_y, d_sz, d_col,
+                   apel_overrides: dict | None = None) -> dict:
     """Buat config baru dan preserve section khusus (apel, dll.) yang tidak dikelola editor."""
     new_cfg = {
         "canvas": cfg.get("canvas", {"w": 1080, "h": 1350}),
@@ -79,10 +80,13 @@ def _build_new_cfg(cfg: dict, pz_x, pz_y, pz_w, pz_h,
         "location": {"cx": l_cx, "y": l_y, "size": l_sz, "color": l_col},
         "date":     {"cx": d_cx, "y": d_y, "size": d_sz, "color": d_col},
     }
-    # Preserve section khusus yang tidak dikelola editor (contoh: "apel")
+    # Preserve section lain yang tidak dikelola editor
     for k, v in cfg.items():
         if k not in new_cfg:
             new_cfg[k] = v
+    # Update section "apel" dengan nilai baru dari editor
+    if apel_overrides is not None:
+        new_cfg["apel"] = {**cfg.get("apel", {}), **apel_overrides}
     return new_cfg
 
 
@@ -540,40 +544,85 @@ with t_layout:
             frame_inner  = fb2.number_input("Padding dalam frame",value=int(cfg.get("frame_inner",  14)), step=1, key=f"{K}_fi")
             frame_color  = fc2.color_picker("Warna garis frame",  value=_to_hex(cfg.get("frame_color","white")), key=f"{K}_fcol")
 
-            # Judul
-            st.markdown("#### Judul Kegiatan")
-            tc = cfg.get("title", {})
-            ta, tb = st.columns(2)
-            t_cx   = ta.number_input("X pusat teks judul",        value=int(tc.get("cx",       540)), step=5,  key=f"{K}_tcx")
-            t_y    = tb.number_input("Y posisi judul",             value=int(tc.get("y",        142)), step=5,  key=f"{K}_ty")
-            t_maxw = st.number_input("Lebar maks teks (px)",       value=int(tc.get("max_w",    960)), step=10, key=f"{K}_tmw")
+            if tpl_type == "apel":
+                # ── Kontrol khusus Apel ──────────────────────────────────────
+                ac = cfg.get("apel", {})
 
-            tc1, tc2 = st.columns(2)
-            t_sz1  = tc1.number_input("Font baris pertama (px)",   value=int(tc.get("size_line1", 40)), step=1, key=f"{K}_ts1")
-            t_sz2  = tc2.number_input("Font baris berikutnya (px)",value=int(tc.get("size_line2", 30)), step=1, key=f"{K}_ts2")
-            tw1, tw2 = st.columns(2)
-            t_col1 = tw1.color_picker("Warna baris 1",  value=_to_hex(tc.get("color_line1","gold")),  key=f"{K}_tc1")
-            t_col2 = tw2.color_picker("Warna baris 2+", value=_to_hex(tc.get("color_line2","white")), key=f"{K}_tc2")
-            th1, th2 = st.columns(2)
-            t_lh1  = th1.number_input("Jarak baris 1 (px)",        value=int(tc.get("line_h1", 50)), step=2, key=f"{K}_lh1")
-            t_lh2  = th2.number_input("Jarak baris 2+ (px)",       value=int(tc.get("line_h2", 38)), step=2, key=f"{K}_lh2")
+                st.markdown("#### Judul Kegiatan")
+                aa, ab, ac1 = st.columns(3)
+                apel_title_x  = aa.number_input("X (dari kiri)",  value=int(ac.get("title_x",   52)), step=2, key=f"{K}_atx")
+                apel_title_y  = ab.number_input("Y (dari atas)",  value=int(ac.get("title_y",  155)), step=2, key=f"{K}_aty")
+                apel_title_sz = ac1.number_input("Ukuran font",   value=int(ac.get("title_size", 44)), step=1, key=f"{K}_atsz")
 
-            # Lokasi & Tanggal
-            st.markdown("#### Lokasi & Tanggal")
-            lc = cfg.get("location", {})
-            dc = cfg.get("date", {})
+                st.markdown("#### Tempat & Tanggal")
+                ia, ib = st.columns(2)
+                apel_info_x  = ia.number_input("X (dari kiri)",   value=int(ac.get("info_x",          52)), step=2, key=f"{K}_aix")
+                apel_info_sz = ib.number_input("Ukuran font",     value=int(ac.get("info_font_size",   25)), step=1, key=f"{K}_aisz")
 
-            la, lb, lc2 = st.columns(3)
-            l_cx  = la.number_input("Lokasi X",     value=int(lc.get("cx",   540)), step=5, key=f"{K}_lcx")
-            l_y   = lb.number_input("Lokasi Y",     value=int(lc.get("y",   1170)), step=5, key=f"{K}_ly")
-            l_sz  = lc2.number_input("Font lokasi", value=int(lc.get("size",  22)), step=1, key=f"{K}_lsz")
-            l_col = st.color_picker("Warna lokasi", value=_to_hex(lc.get("color","white")), key=f"{K}_lcol")
+                st.markdown("#### Quote")
+                qa, qb = st.columns(2)
+                apel_quote_h  = qa.number_input("Tinggi area quote (px)", value=int(ac.get("quote_h",          115)), step=5, key=f"{K}_aqh")
+                apel_quote_sz = qb.number_input("Ukuran font quote",      value=int(ac.get("quote_font_size",   24)), step=1, key=f"{K}_aqsz")
 
-            da, db, dc2 = st.columns(3)
-            d_cx  = da.number_input("Tanggal X",     value=int(dc.get("cx",   540)), step=5, key=f"{K}_dcx")
-            d_y   = db.number_input("Tanggal Y",     value=int(dc.get("y",   1205)), step=5, key=f"{K}_dy")
-            d_sz  = dc2.number_input("Font tanggal", value=int(dc.get("size",  20)), step=1, key=f"{K}_dsz")
-            d_col = st.color_picker("Warna tanggal", value=_to_hex(dc.get("color","gold")), key=f"{K}_dcol")
+                with st.expander("Efek visual (blur, overlay, gradien)"):
+                    ea, eb, ec = st.columns(3)
+                    apel_blur = ea.number_input("Blur background",    value=int(ac.get("blur_radius",  10)), step=1, key=f"{K}_abl")
+                    apel_dark = eb.number_input("Gelap overlay",      value=int(ac.get("dark_alpha",   75)), step=5, key=f"{K}_adk")
+                    apel_grad = ec.number_input("Gradien biru",       value=int(ac.get("grad_alpha",  115)), step=5, key=f"{K}_agr")
+                    apel_fp   = st.number_input("Frame padding kiri-kanan", value=int(ac.get("frame_pad", 34)), step=2, key=f"{K}_afp")
+
+                apel_overrides = {
+                    "title_x": apel_title_x, "title_y": apel_title_y, "title_size": apel_title_sz,
+                    "info_x": apel_info_x, "info_font_size": apel_info_sz,
+                    "quote_h": apel_quote_h, "quote_font_size": apel_quote_sz,
+                    "blur_radius": apel_blur, "dark_alpha": apel_dark, "grad_alpha": apel_grad,
+                    "frame_pad": apel_fp,
+                }
+                # Nilai dummy untuk _build_new_cfg (standard sections diabaikan oleh render_apel)
+                tc = cfg.get("title", {}); lc = cfg.get("location", {}); dc = cfg.get("date", {})
+                t_cx, t_y, t_maxw = int(tc.get("cx",540)), int(tc.get("y",142)), int(tc.get("max_w",960))
+                t_sz1, t_col1 = int(tc.get("size_line1",40)), _to_hex(tc.get("color_line1","gold"))
+                t_sz2, t_col2 = int(tc.get("size_line2",30)), _to_hex(tc.get("color_line2","white"))
+                t_lh1, t_lh2  = int(tc.get("line_h1",50)), int(tc.get("line_h2",38))
+                l_cx, l_y, l_sz, l_col = int(lc.get("cx",540)), int(lc.get("y",1170)), int(lc.get("size",22)), _to_hex(lc.get("color","white"))
+                d_cx, d_y, d_sz, d_col = int(dc.get("cx",540)), int(dc.get("y",1205)), int(dc.get("size",20)), _to_hex(dc.get("color","gold"))
+
+            else:
+                # ── Kontrol standar (kegiatan, program, dll.) ────────────────
+                apel_overrides = None
+
+                st.markdown("#### Judul Kegiatan")
+                tc = cfg.get("title", {})
+                ta, tb = st.columns(2)
+                t_cx   = ta.number_input("X pusat teks judul",        value=int(tc.get("cx",       540)), step=5,  key=f"{K}_tcx")
+                t_y    = tb.number_input("Y posisi judul",             value=int(tc.get("y",        142)), step=5,  key=f"{K}_ty")
+                t_maxw = st.number_input("Lebar maks teks (px)",       value=int(tc.get("max_w",    960)), step=10, key=f"{K}_tmw")
+
+                tc1, tc2 = st.columns(2)
+                t_sz1  = tc1.number_input("Font baris pertama (px)",   value=int(tc.get("size_line1", 40)), step=1, key=f"{K}_ts1")
+                t_sz2  = tc2.number_input("Font baris berikutnya (px)",value=int(tc.get("size_line2", 30)), step=1, key=f"{K}_ts2")
+                tw1, tw2 = st.columns(2)
+                t_col1 = tw1.color_picker("Warna baris 1",  value=_to_hex(tc.get("color_line1","gold")),  key=f"{K}_tc1")
+                t_col2 = tw2.color_picker("Warna baris 2+", value=_to_hex(tc.get("color_line2","white")), key=f"{K}_tc2")
+                th1, th2 = st.columns(2)
+                t_lh1  = th1.number_input("Jarak baris 1 (px)",        value=int(tc.get("line_h1", 50)), step=2, key=f"{K}_lh1")
+                t_lh2  = th2.number_input("Jarak baris 2+ (px)",       value=int(tc.get("line_h2", 38)), step=2, key=f"{K}_lh2")
+
+                st.markdown("#### Lokasi & Tanggal")
+                lc = cfg.get("location", {})
+                dc = cfg.get("date", {})
+
+                la, lb, lc2 = st.columns(3)
+                l_cx  = la.number_input("Lokasi X",     value=int(lc.get("cx",   540)), step=5, key=f"{K}_lcx")
+                l_y   = lb.number_input("Lokasi Y",     value=int(lc.get("y",   1170)), step=5, key=f"{K}_ly")
+                l_sz  = lc2.number_input("Font lokasi", value=int(lc.get("size",  22)), step=1, key=f"{K}_lsz")
+                l_col = st.color_picker("Warna lokasi", value=_to_hex(lc.get("color","white")), key=f"{K}_lcol")
+
+                da, db, dc2 = st.columns(3)
+                d_cx  = da.number_input("Tanggal X",     value=int(dc.get("cx",   540)), step=5, key=f"{K}_dcx")
+                d_y   = db.number_input("Tanggal Y",     value=int(dc.get("y",   1205)), step=5, key=f"{K}_dy")
+                d_sz  = dc2.number_input("Font tanggal", value=int(dc.get("size",  20)), step=1, key=f"{K}_dsz")
+                d_col = st.color_picker("Warna tanggal", value=_to_hex(dc.get("color","gold")), key=f"{K}_dcol")
 
             st.markdown("---")
             if st.button("💾  Simpan Config", use_container_width=True, type="primary", key=f"{K}_save"):
@@ -582,6 +631,7 @@ with t_layout:
                     photo_gap, corner_r, border_w, frame_corner, frame_inner, frame_color,
                     t_cx, t_y, t_maxw, t_sz1, t_col1, t_sz2, t_col2, t_lh1, t_lh2,
                     l_cx, l_y, l_sz, l_col, d_cx, d_y, d_sz, d_col,
+                    apel_overrides=apel_overrides,
                 )
                 save_config(selected, new_cfg)
                 meta[selected] = {"label": tpl_label, "type": tpl_type}
@@ -606,6 +656,7 @@ with t_layout:
                     photo_gap, corner_r, border_w, frame_corner, frame_inner, frame_color,
                     t_cx, t_y, t_maxw, t_sz1, t_col1, t_sz2, t_col2, t_lh1, t_lh2,
                     l_cx, l_y, l_sz, l_col, d_cx, d_y, d_sz, d_col,
+                    apel_overrides=apel_overrides,
                 )
                 save_config(selected, new_cfg)
                 meta[selected] = {"label": tpl_label, "type": tpl_type}
