@@ -643,8 +643,13 @@ def render_apel(
         text_start_y = Q_TEXT_CY - q_total_h // 2
         q_y = text_start_y - bb_q[1]
         d_q = ImageDraw.Draw(canvas)
+        SHADOW_OFF = ac.get("quote_shadow_offset", 2)
+        SHADOW_A   = ac.get("quote_shadow_alpha",  160)
         for ln in q_lines:
             lx = frame_cx - _tw(ln, fnt_quote) // 2
+            if SHADOW_OFF:
+                d_q.text((lx + SHADOW_OFF, q_y + SHADOW_OFF), ln,
+                         font=fnt_quote, fill=(0, 0, 0, SHADOW_A))
             d_q.text((lx, q_y), ln, font=fnt_quote, fill=(255, 255, 255, 255))
             q_y += lh_q
 
