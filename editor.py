@@ -3,6 +3,7 @@ SMARTREPORT EDITOR — Aplikasi visual untuk mengelola template, layout, keyword
 Jalankan: streamlit run editor.py   (atau klik run_editor.bat)
 """
 import base64
+import importlib
 import io
 import json
 import re
@@ -188,16 +189,16 @@ def _placeholder_photos(n: int) -> list[Image.Image]:
 
 def do_preview(tpl: str, n: int, title: str, location: str, tpl_type: str = "kegiatan") -> Image.Image | None:
     try:
+        import src.renderer.canvas as _canvas
+        importlib.reload(_canvas)
         if tpl_type == "apel":
-            from src.renderer.canvas import render_apel
-            return render_apel(
+            return _canvas.render_apel(
                 title=title, photos=_placeholder_photos(n),
                 event_date=date.today(), location=location,
                 quote="Kualitas bukan kebetulan, selalu hasil dari usaha yang cerdas.",
                 template=tpl,
             )
-        from src.renderer.canvas import render_doc
-        return render_doc(
+        return _canvas.render_doc(
             title=title, photos=_placeholder_photos(n),
             event_date=date.today(), location=location, template=tpl,
         )
