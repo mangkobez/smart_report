@@ -45,8 +45,19 @@ def main() -> None:
     app.add_handler(MessageHandler(filters.PHOTO,                   photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_message))
 
+    async def _on_startup(app):
+        if ADMIN_CHAT_ID := os.getenv("ADMIN_CHAT_ID", ""):
+            try:
+                await app.bot.send_message(
+                    chat_id=ADMIN_CHAT_ID,
+                    text="✅ *SmartReport Bot* aktif dan siap digunakan.",
+                    parse_mode="Markdown",
+                )
+            except Exception:
+                pass
+
     print("Bot berjalan... (Ctrl+C untuk stop)")
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(drop_pending_updates=True, post_init=_on_startup)
 
 
 if __name__ == "__main__":
