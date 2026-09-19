@@ -2,6 +2,7 @@
 SMARTREPORT EDITOR — Aplikasi visual untuk mengelola template, layout, keyword, dan pengaturan bot.
 Jalankan: streamlit run editor.py   (atau klik run_editor.bat)
 """
+import base64
 import io
 import json
 import re
@@ -349,10 +350,22 @@ hr { border-color: #e5e7eb !important; margin: 1.2rem 0 !important; }
 """, unsafe_allow_html=True)
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.markdown("""
+_logo_path = BASE_DIR / "assets" / "logo" / "template_1.png"
+_logo_tag  = ""
+if _logo_path.exists():
+    _b64 = base64.b64encode(_logo_path.read_bytes()).decode()
+    _logo_tag = (
+        f'<img src="data:image/png;base64,{_b64}" '
+        'style="height:56px;width:56px;object-fit:contain;'
+        'border-radius:10px;flex-shrink:0;">'
+    )
+
+st.markdown(f"""
 <div style="background:linear-gradient(135deg,#1a56db,#1e40af);
-            border-radius:14px; padding:22px 28px; margin-bottom:24px;
-            display:flex; align-items:center; gap:16px;">
+            border-radius:14px; padding:22px 28px;
+            margin-top:18px; margin-bottom:24px;
+            display:flex; align-items:center; gap:18px;">
+  {_logo_tag}
   <div>
     <div style="color:white; font-size:1.5rem; font-weight:700; line-height:1.2;">
       SmartReport Editor
@@ -555,9 +568,16 @@ with t_layout:
                 apel_title_sz = ac1.number_input("Ukuran font",   value=int(ac.get("title_size", 44)), step=1, key=f"{K}_atsz")
 
                 st.markdown("#### Tempat & Tanggal")
-                ia, ib = st.columns(2)
-                apel_info_x  = ia.number_input("X (dari kiri)",   value=int(ac.get("info_x",          52)), step=2, key=f"{K}_aix")
-                apel_info_sz = ib.number_input("Ukuran font",     value=int(ac.get("info_font_size",   25)), step=1, key=f"{K}_aisz")
+                ia, ib, ic = st.columns(3)
+                apel_info_x   = ia.number_input("X (dari kiri)",       value=int(ac.get("info_x",          52)), step=2, key=f"{K}_aix")
+                apel_info_gap = ib.number_input("Jarak dari judul (px)",value=int(ac.get("info_gap",         12)), step=1, key=f"{K}_aigap")
+                apel_info_sz  = ic.number_input("Ukuran font",          value=int(ac.get("info_font_size",   25)), step=1, key=f"{K}_aisz")
+
+                st.markdown("#### Outline / Frame")
+                oa, ob, oc = st.columns(3)
+                apel_frame_gap = oa.number_input("Jarak info → frame (px)",  value=int(ac.get("frame_gap",            16)), step=1, key=f"{K}_afgap")
+                apel_frame_bot = ob.number_input("Jarak frame → bawah (px)", value=int(ac.get("frame_bottom_margin",  18)), step=1, key=f"{K}_afbot")
+                apel_fp2       = oc.number_input("Padding kiri-kanan frame", value=int(ac.get("frame_pad",            34)), step=2, key=f"{K}_afp2")
 
                 st.markdown("#### Quote")
                 qa, qb = st.columns(2)
@@ -566,17 +586,18 @@ with t_layout:
 
                 with st.expander("Efek visual (blur, overlay, gradien)"):
                     ea, eb, ec = st.columns(3)
-                    apel_blur = ea.number_input("Blur background",    value=int(ac.get("blur_radius",  10)), step=1, key=f"{K}_abl")
-                    apel_dark = eb.number_input("Gelap overlay",      value=int(ac.get("dark_alpha",   75)), step=5, key=f"{K}_adk")
-                    apel_grad = ec.number_input("Gradien biru",       value=int(ac.get("grad_alpha",  115)), step=5, key=f"{K}_agr")
-                    apel_fp   = st.number_input("Frame padding kiri-kanan", value=int(ac.get("frame_pad", 34)), step=2, key=f"{K}_afp")
+                    apel_blur = ea.number_input("Blur background", value=int(ac.get("blur_radius",  10)), step=1, key=f"{K}_abl")
+                    apel_dark = eb.number_input("Gelap overlay",   value=int(ac.get("dark_alpha",   75)), step=5, key=f"{K}_adk")
+                    apel_grad = ec.number_input("Gradien biru",    value=int(ac.get("grad_alpha",  115)), step=5, key=f"{K}_agr")
 
                 apel_overrides = {
                     "title_x": apel_title_x, "title_y": apel_title_y, "title_size": apel_title_sz,
                     "info_x": apel_info_x, "info_font_size": apel_info_sz,
+                    "info_gap": apel_info_gap,
+                    "frame_gap": apel_frame_gap, "frame_bottom_margin": apel_frame_bot,
+                    "frame_pad": apel_fp2,
                     "quote_h": apel_quote_h, "quote_font_size": apel_quote_sz,
                     "blur_radius": apel_blur, "dark_alpha": apel_dark, "grad_alpha": apel_grad,
-                    "frame_pad": apel_fp,
                 }
                 # Nilai dummy untuk _build_new_cfg (standard sections diabaikan oleh render_apel)
                 tc = cfg.get("title", {}); lc = cfg.get("location", {}); dc = cfg.get("date", {})

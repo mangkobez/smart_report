@@ -421,6 +421,9 @@ def render_apel(
     QUOTE_H      = ac.get("quote_h",        115)
     Q_FSIZE      = ac.get("quote_font_size", 24)
     FOOTER_RATIO = ac.get("footer_ratio",  0.09)
+    INFO_GAP     = ac.get("info_gap",             12)
+    FRAME_GAP    = ac.get("frame_gap",            16)
+    FRAME_BOT    = ac.get("frame_bottom_margin",  18)
 
     PHOTO_GAP    = cfg.get("photo_gap",   40)
     CORNER_R     = cfg.get("corner_r",    14)
@@ -489,7 +492,7 @@ def render_apel(
     bb_i = fnt_info.getbbox("A")
     text_h = bb_i[3] - bb_i[1]
     info_x = INFO_X
-    info_y = title_y + 12
+    info_y = title_y + INFO_GAP
 
     loc_text = location or "UPTD Puskesmas Cipatujah"
     date_str = (
@@ -575,9 +578,9 @@ def render_apel(
 
     # 7. Frame outline mengelilingi kolase + quote
     frame_x0, frame_x1 = FRAME_PAD, W - FRAME_PAD
-    frame_y0 = info_y + 16
+    frame_y0 = info_y + FRAME_GAP
     footer_h = int(H * FOOTER_RATIO)
-    frame_y1 = H - footer_h - 18
+    frame_y1 = H - footer_h - FRAME_BOT
 
     frame_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ImageDraw.Draw(frame_layer).rounded_rectangle(

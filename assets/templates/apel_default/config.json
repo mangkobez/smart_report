@@ -1,15 +1,23 @@
 {
-  "canvas": {"w": 1080, "h": 1350},
-  "photo_zone": {"x": 34, "y": 370, "w": 1012, "h": 850},
+  "canvas": {
+    "w": 1080,
+    "h": 1350
+  },
+  "photo_zone": {
+    "x": 34,
+    "y": 370,
+    "w": 1012,
+    "h": 850
+  },
   "photo_gap": 40,
   "corner_r": 14,
   "border_w": 3,
   "frame_corner": 22,
-  "frame_inner": 14,
+  "frame_inner": 40,
   "frame_color": "#ffffff",
   "title": {
     "cx": 540,
-    "y": 142,
+    "y": 137,
     "max_w": 960,
     "size_line1": 40,
     "color_line1": "#ffd200",
@@ -20,7 +28,7 @@
   },
   "location": {
     "cx": 540,
-    "y": 1170,
+    "y": 1145,
     "size": 22,
     "color": "#ffffff"
   },
@@ -32,17 +40,20 @@
   },
   "apel": {
     "title_x": 52,
-    "title_y": 155,
+    "title_y": 129,
     "title_size": 44,
     "info_x": 52,
     "info_font_size": 25,
     "icon_sz": 22,
     "blur_radius": 10,
-    "dark_alpha": 75,
+    "dark_alpha": 30,
     "grad_alpha": 115,
-    "frame_pad": 34,
+    "frame_pad": 54,
     "quote_h": 115,
     "quote_font_size": 24,
-    "footer_ratio": 0.09
+    "footer_ratio": 0.09,
+    "info_gap": 30,
+    "frame_gap": 40,
+    "frame_bottom_margin": 18
   }
 }
