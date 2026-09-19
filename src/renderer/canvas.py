@@ -93,6 +93,14 @@ def _montserrat_black(size: int) -> ImageFont.ImageFont:
         return _bold(size)
 
 
+def _lora_italic(size: int) -> ImageFont.ImageFont:
+    try:
+        return ImageFont.truetype(
+            str(ASSETS_DIR / "fonts" / "Lora-Italic.ttf"), size)
+    except (IOError, OSError):
+        return _italic_bold(size)
+
+
 def _remove_white_bg(img: Image.Image, thresh: int = 240) -> Image.Image:
     """Ubah piksel putih/near-white jadi transparan."""
     img = img.convert("RGBA")
@@ -617,7 +625,7 @@ def render_apel(
     # 9. Quote: pill lebar + garis dekoratif kiri-kanan + italic bold
     canvas = canvas_rgb.convert("RGBA")
     if quote:
-        fnt_quote = _italic_bold(Q_FSIZE)
+        fnt_quote = _lora_italic(Q_FSIZE)
         frame_w   = frame_x1 - frame_x0
         frame_cx  = (frame_x0 + frame_x1) // 2
         q_lines   = _wrap(f'"{quote}"', fnt_quote, frame_w - 100)
