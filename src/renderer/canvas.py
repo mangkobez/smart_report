@@ -406,36 +406,54 @@ def render_apel(
     W, H = 1080, 1350
 
     # Pisahkan foto background dari kolase
-    bg_idx = max(0, min(bg_idx, len(photos) - 1))
-    bg_photo = photos[bg_idx]
-    collage_photos = [p for i, p in enumerate(photos) if i != bg_idx]
+    if photos:
+        bg_idx = max(0, min(bg_idx, len(photos) - 1))
+        bg_photo = photos[bg_idx]
+        collage_photos = [p for i, p in enumerate(photos) if i != bg_idx]
+    else:
+        bg_photo = None
+        collage_photos = []
 
-    # 1. Background: foto di-blur
-    bg = smart_crop(bg_photo, W, H).convert("RGBA")
-    bg = bg.filter(ImageFilter.GaussianBlur(radius=18))
+    # 1. Background: foto di-blur (radius dikurangi)
+    if bg_photo:
+        bg = smart_crop(bg_photo, W, H).convert("RGBA")
+    else:
+        bg = Image.new("RGBA", (W, H), (15, 35, 65, 255))
+    bg = bg.filter(ImageFilter.GaussianBlur(radius=10))
 
-    # 2. Dark navy overlay
-    dark = Image.new("RGBA", (W, H), (15, 35, 65, 155))
+    # 2. Dark navy overlay (lebih ringan)
+    dark = Image.new("RGBA", (W, H), (15, 35, 65, 90))
     canvas = Image.alpha_composite(bg, dark)
 
-    # 3. Tempel overlay.png (header + footer, hapus bg putih)
+    # 3. Tempel overlay.png — hanya strip header (atas) dan footer (bawah)
+    #    Pendekatan ini mempertahankan background putih logo/footer tanpa dihapus
     tpl_dir = TEMPLATES_DIR / template
     ovl_path = tpl_dir / "overlay.png"
     if ovl_path.exists():
         ovl = Image.open(ovl_path).convert("RGBA")
         if ovl.size != (W, H):
             ovl = ovl.resize((W, H), Image.LANCZOS)
-        ovl = _remove_white_bg(ovl, thresh=238)
+        mask = Image.new("L", (W, H), 0)
+        dm = ImageDraw.Draw(mask)
+        dm.rectangle([(0, 0), (W, int(H * 0.10))], fill=255)    # header ~135px
+        dm.rectangle([(0, int(H * 0.91)), (W, H)], fill=255)    # footer ~122px
+        ovl.putalpha(mask)
         canvas = Image.alpha_composite(canvas, ovl)
 
-    # 4. Judul: NotoSans Bold Italic, putih dengan outline hitam
+    # 4. Judul: NotoSans Bold Italic, putih dengan outline, centered + wrapping
     draw = ImageDraw.Draw(canvas)
-    fnt_title = _italic_bold(66)
-    title_y = 115
-    tx = W // 2 - _tw(title, fnt_title) // 2
-    for dx, dy in [(-2, -2), (2, -2), (-2, 2), (2, 2), (0, -2), (0, 2), (-2, 0), (2, 0)]:
-        draw.text((tx + dx, title_y + dy), title, font=fnt_title, fill=(0, 0, 0, 230))
-    draw.text((tx, title_y), title, font=fnt_title, fill=(255, 255, 255, 255))
+    fnt_title = _italic_bold(52)
+    title_lines = _wrap(title.upper(), fnt_title, W - 100)
+    bb_t = fnt_title.getbbox("A")
+    lh_t = (bb_t[3] - bb_t[1]) + 10
+    title_y = 145
+
+    for line in title_lines:
+        tx = W // 2 - _tw(line, fnt_title) // 2
+        for dx, dy in [(-2, -2), (2, -2), (-2, 2), (2, 2), (0, -2), (0, 2), (-2, 0), (2, 0)]:
+            draw.text((tx + dx, title_y + dy), line, font=fnt_title, fill=(0, 0, 0, 230))
+        draw.text((tx, title_y), line, font=fnt_title, fill=(255, 255, 255, 255))
+        title_y += lh_t
 
     # Helper: gambar pill semi-transparan
     def _pill(cy: int, text: str, bg_rgba=(255, 255, 255, 110),
@@ -457,9 +475,9 @@ def render_apel(
         )
         return cy + ph
 
-    # 5. Pill lokasi dan tanggal
+    # 5. Pill lokasi dan tanggal — posisi dinamis setelah judul
     fnt_pill = _bold(26)
-    pill_y = 210
+    pill_y = title_y + 14
     loc_text = location or "UPTD Puskesmas Cipatujah"
     pill_y = _pill(pill_y, loc_text, fnt=fnt_pill)
 
