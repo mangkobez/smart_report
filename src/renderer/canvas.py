@@ -621,18 +621,18 @@ def render_apel(
         }
         _place_photos(canvas_rgb, ImageDraw.Draw(canvas_rgb), collage_photos, fake_cfg)
 
-    # 9. Quote: pill lebar + garis dekoratif kiri-kanan + italic bold
+    # 9. Quote: box semi-transparan + tanda petik dekoratif di pojok atas-kiri & bawah-kanan
     canvas = canvas_rgb.convert("RGBA")
     if quote:
         fnt_quote = _lora_italic(Q_FSIZE)
         frame_w   = frame_x1 - frame_x0
         frame_cx  = (frame_x0 + frame_x1) // 2
-        q_lines   = _wrap(f'"{quote}"', fnt_quote, frame_w - 100)
+        q_lines   = _wrap(quote, fnt_quote, frame_w - 120)
         bb_q      = fnt_quote.getbbox("A")
         lh_q      = (bb_q[3] - bb_q[1]) + 5
         q_total_h = len(q_lines) * lh_q
 
-        Q_PAD_Y   = 12
+        Q_PAD_Y   = 16
         q_pill_x0 = frame_x0 + QUOTE_PAD_X
         q_pill_x1 = frame_x1 - QUOTE_PAD_X
 
@@ -640,19 +640,36 @@ def render_apel(
         q_pill_y0    = pill_area_y0 + (QUOTE_H - q_total_h - Q_PAD_Y * 2) // 2
         q_pill_y1    = q_pill_y0 + q_total_h + Q_PAD_Y * 2
 
-        d_q    = ImageDraw.Draw(canvas)
-        q_y    = q_pill_y0 + Q_PAD_Y - bb_q[1]
-        LINSET = 28
-        line_c = (200, 200, 200, 110)
-        d_q.line([(q_pill_x0 + LINSET, q_pill_y0 + Q_PAD_Y // 2),
-                  (q_pill_x1 - LINSET, q_pill_y0 + Q_PAD_Y // 2)],
-                 fill=line_c, width=1)
-        d_q.line([(q_pill_x0 + LINSET, q_pill_y1 - Q_PAD_Y // 2),
-                  (q_pill_x1 - LINSET, q_pill_y1 - Q_PAD_Y // 2)],
-                 fill=line_c, width=1)
+        d_q = ImageDraw.Draw(canvas)
+
+        # Box semi-transparan
+        d_q.rounded_rectangle(
+            [(q_pill_x0, q_pill_y0), (q_pill_x1, q_pill_y1)],
+            radius=12, fill=(255, 255, 255, 40)
+        )
+
+        # Tanda petik besar — dipasang di pojok, setengah di luar box
+        QM_SIZE = max(48, Q_FSIZE + 20)
+        fnt_qm  = _lora_italic(QM_SIZE)
+        qm_col  = (255, 255, 255, 200)
+
+        bb_o  = fnt_qm.getbbox("“")
+        bb_c  = fnt_qm.getbbox("”")
+        cl_w  = bb_c[2] - bb_c[0]
+
+        # Opening " — pusatkan di pojok atas-kiri box
+        oy = q_pill_y0 - (bb_o[1] + bb_o[3]) // 2
+        d_q.text((q_pill_x0 + 8, oy), "“", font=fnt_qm, fill=qm_col)
+
+        # Closing " — pusatkan di pojok bawah-kanan box
+        cy = q_pill_y1 - (bb_c[1] + bb_c[3]) // 2
+        d_q.text((q_pill_x1 - cl_w - 8, cy), "”", font=fnt_qm, fill=qm_col)
+
+        # Teks quote
+        q_y = q_pill_y0 + Q_PAD_Y - bb_q[1]
         for ln in q_lines:
             lx = frame_cx - _tw(ln, fnt_quote) // 2
-            d_q.text((lx, q_y), ln, font=fnt_quote, fill=(220, 220, 220, 255))
+            d_q.text((lx, q_y), ln, font=fnt_quote, fill=(230, 230, 230, 255))
             q_y += lh_q
 
     result = canvas.convert("RGB")
