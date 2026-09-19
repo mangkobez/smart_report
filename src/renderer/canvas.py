@@ -628,54 +628,52 @@ def render_apel(
         frame_w   = frame_x1 - frame_x0
         frame_cx  = (frame_x0 + frame_x1) // 2
         q_lines   = _wrap(quote, fnt_quote, frame_w - 120)
-        bb_q      = fnt_quote.getbbox("A")
-        lh_q      = (bb_q[3] - bb_q[1]) + 5
-        q_total_h = len(q_lines) * lh_q
+        bb_q      = fnt_quote.getbbox(“A”)
+        lh_q      = (bb_q[3] - bb_q[1]) + 12
+        q_total_h = len(q_lines) * lh_q - 12  # last line doesn't need trailing gap
 
-        QM_SIZE   = max(40, Q_FSIZE + 12)
+        QM_SIZE   = max(38, Q_FSIZE + 10)
         fnt_qm    = _lora_italic(QM_SIZE)
-        bb_o      = fnt_qm.getbbox("“")
-        bb_c      = fnt_qm.getbbox("”")
+        bb_o      = fnt_qm.getbbox(““”)
+        bb_c      = fnt_qm.getbbox(“””)
         open_h    = bb_o[3] - bb_o[1]
         cl_w      = bb_c[2] - bb_c[0]
         cl_h      = bb_c[3] - bb_c[1]
 
-        Q_PAD_TOP = open_h + 10
-        Q_PAD_BOT = 12
-
+        Q_PAD_Y   = 16
         q_pill_x0 = frame_x0 + QUOTE_PAD_X
         q_pill_x1 = frame_x1 - QUOTE_PAD_X
 
         pill_area_y0 = frame_y1 - QUOTE_H
-        box_h        = q_total_h + Q_PAD_TOP + Q_PAD_BOT
+        # Box cukup tinggi untuk teks + padding, minimal muat kedua mark di pojok
+        box_h        = max(q_total_h + Q_PAD_Y * 2, open_h + cl_h + 16)
         q_pill_y0    = pill_area_y0 + max(0, (QUOTE_H - box_h) // 2)
         q_pill_y1    = q_pill_y0 + box_h
 
-        # Box semi-transparan — harus pakai alpha_composite agar benar
-        q_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        # Box semi-transparan — pakai alpha_composite agar benar
+        q_layer = Image.new(“RGBA”, (W, H), (0, 0, 0, 0))
         ImageDraw.Draw(q_layer).rounded_rectangle(
             [(q_pill_x0, q_pill_y0), (q_pill_x1, q_pill_y1)],
             radius=12, fill=(255, 255, 255, 35)
         )
         canvas = Image.alpha_composite(canvas, q_layer)
 
-        # Tanda petik dan teks digambar langsung (opaque) di atas canvas hasil composite
         d_q = ImageDraw.Draw(canvas)
 
-        # Opening " — pojok atas-kiri dalam box
+        # Opening “ — tepat di pojok atas-kiri box (4px dari tepi)
         d_q.text(
-            (q_pill_x0 + 10, q_pill_y0 + 6 - bb_o[1]),
-            "“", font=fnt_qm, fill=(255, 255, 255, 255)
+            (q_pill_x0 + 4, q_pill_y0 + 4 - bb_o[1]),
+            ““”, font=fnt_qm, fill=(255, 255, 255, 255)
         )
 
-        # Closing " — pojok bawah-kanan dalam box (bottom-aligned)
+        # Closing “ — tepat di pojok bawah-kanan box (4px dari tepi, bottom-aligned)
         d_q.text(
-            (q_pill_x1 - cl_w - 10, q_pill_y1 - cl_h - 6 - bb_c[1]),
-            "”", font=fnt_qm, fill=(255, 255, 255, 255)
+            (q_pill_x1 - cl_w - 4, q_pill_y1 - cl_h - 4 - bb_c[1]),
+            “””, font=fnt_qm, fill=(255, 255, 255, 255)
         )
 
-        # Teks quote — putih penuh, di bawah tanda petik pembuka
-        q_y = q_pill_y0 + Q_PAD_TOP - bb_q[1]
+        # Teks quote — center vertikal dalam box, spasi baris lebih lega
+        q_y = q_pill_y0 + Q_PAD_Y - bb_q[1]
         for ln in q_lines:
             lx = frame_cx - _tw(ln, fnt_quote) // 2
             d_q.text((lx, q_y), ln, font=fnt_quote, fill=(255, 255, 255, 255))
