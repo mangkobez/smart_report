@@ -405,11 +405,11 @@ def render_apel(
 
     W, H = 1080, 1350
 
-    # Pisahkan foto background dari kolase
+    # Foto background untuk blur, semua foto masuk kolase
     if photos:
         bg_idx = max(0, min(bg_idx, len(photos) - 1))
         bg_photo = photos[bg_idx]
-        collage_photos = [p for i, p in enumerate(photos) if i != bg_idx]
+        collage_photos = list(photos)
     else:
         bg_photo = None
         collage_photos = []
