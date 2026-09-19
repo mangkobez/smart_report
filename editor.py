@@ -60,10 +60,37 @@ def save_config(tpl: str, cfg: dict) -> None:
     )
 
 
+def _build_new_cfg(cfg: dict, pz_x, pz_y, pz_w, pz_h,
+                   photo_gap, corner_r, border_w, frame_corner, frame_inner, frame_color,
+                   t_cx, t_y, t_maxw, t_sz1, t_col1, t_sz2, t_col2, t_lh1, t_lh2,
+                   l_cx, l_y, l_sz, l_col, d_cx, d_y, d_sz, d_col) -> dict:
+    """Buat config baru dan preserve section khusus (apel, dll.) yang tidak dikelola editor."""
+    new_cfg = {
+        "canvas": cfg.get("canvas", {"w": 1080, "h": 1350}),
+        "photo_zone": {"x": pz_x, "y": pz_y, "w": pz_w, "h": pz_h},
+        "photo_gap": photo_gap, "corner_r": corner_r, "border_w": border_w,
+        "frame_corner": frame_corner, "frame_inner": frame_inner, "frame_color": frame_color,
+        "title": {
+            "cx": t_cx, "y": t_y, "max_w": t_maxw,
+            "size_line1": t_sz1, "color_line1": t_col1,
+            "size_line2": t_sz2, "color_line2": t_col2,
+            "line_h1": t_lh1, "line_h2": t_lh2,
+        },
+        "location": {"cx": l_cx, "y": l_y, "size": l_sz, "color": l_col},
+        "date":     {"cx": d_cx, "y": d_y, "size": d_sz, "color": d_col},
+    }
+    # Preserve section khusus yang tidak dikelola editor (contoh: "apel")
+    for k, v in cfg.items():
+        if k not in new_cfg:
+            new_cfg[k] = v
+    return new_cfg
+
+
 JENIS_LABEL = {
     "kegiatan":     "📋  Dokumentasi Kegiatan",
     "program":      "🏥  Program Kesehatan",
     "sppd":         "✈️  Perjalanan Dinas",
+    "apel":         "🌅  Apel / Briefing Pagi",
     "belasungkawa": "🕊️  Ucapan Belasungkawa",
     "ucapan":       "🎉  Ucapan Selamat",
     "ultah":        "🎂  Ucapan Ulang Tahun",
@@ -153,8 +180,16 @@ def _placeholder_photos(n: int) -> list[Image.Image]:
     return imgs
 
 
-def do_preview(tpl: str, n: int, title: str, location: str) -> Image.Image | None:
+def do_preview(tpl: str, n: int, title: str, location: str, tpl_type: str = "kegiatan") -> Image.Image | None:
     try:
+        if tpl_type == "apel":
+            from src.renderer.canvas import render_apel
+            return render_apel(
+                title=title, photos=_placeholder_photos(n),
+                event_date=date.today(), location=location,
+                quote="Kualitas bukan kebetulan, selalu hasil dari usaha yang cerdas.",
+                template=tpl,
+            )
         from src.renderer.canvas import render_doc
         return render_doc(
             title=title, photos=_placeholder_photos(n),
@@ -449,6 +484,16 @@ with t_layout:
                 st.success("Nama disimpan.")
             st.stop()
 
+        if _cur_type == "apel":
+            st.info(
+                "🌅 **Template Apel / Briefing Pagi** — "
+                "kontrol yang aktif: **Zona Foto** (gap, radius, border, padding, frame corner). "
+                "Section Judul & Lokasi/Tanggal tidak digunakan karena apel punya layout sendiri. "
+                "Parameter khusus apel (ukuran font, gradien, dll.) ada di section **`\"apel\"`** "
+                "di file `config.json` dan tetap dipreserve saat simpan.",
+                icon="ℹ️",
+            )
+
         col_ctrl, col_prev = st.columns([1.1, 0.9], gap="large")
 
         # ── Panel kiri: kontrol ──────────────────────────────────────────────
@@ -532,20 +577,12 @@ with t_layout:
 
             st.markdown("---")
             if st.button("💾  Simpan Config", use_container_width=True, type="primary", key=f"{K}_save"):
-                new_cfg = {
-                    "canvas": cfg.get("canvas", {"w": 1080, "h": 1350}),
-                    "photo_zone": {"x": pz_x, "y": pz_y, "w": pz_w, "h": pz_h},
-                    "photo_gap": photo_gap, "corner_r": corner_r, "border_w": border_w,
-                    "frame_corner": frame_corner, "frame_inner": frame_inner, "frame_color": frame_color,
-                    "title": {
-                        "cx": t_cx, "y": t_y, "max_w": t_maxw,
-                        "size_line1": t_sz1, "color_line1": t_col1,
-                        "size_line2": t_sz2, "color_line2": t_col2,
-                        "line_h1": t_lh1, "line_h2": t_lh2,
-                    },
-                    "location": {"cx": l_cx, "y": l_y, "size": l_sz, "color": l_col},
-                    "date":     {"cx": d_cx, "y": d_y, "size": d_sz, "color": d_col},
-                }
+                new_cfg = _build_new_cfg(
+                    cfg, pz_x, pz_y, pz_w, pz_h,
+                    photo_gap, corner_r, border_w, frame_corner, frame_inner, frame_color,
+                    t_cx, t_y, t_maxw, t_sz1, t_col1, t_sz2, t_col2, t_lh1, t_lh2,
+                    l_cx, l_y, l_sz, l_col, d_cx, d_y, d_sz, d_col,
+                )
                 save_config(selected, new_cfg)
                 meta[selected] = {"label": tpl_label, "type": tpl_type}
                 save_meta(meta)
@@ -564,26 +601,18 @@ with t_layout:
 
             if st.button("🔄  Render Preview", use_container_width=True, type="primary", key="render_btn"):
                 # Auto-simpan config sebelum render agar renderer membaca nilai terbaru
-                new_cfg = {
-                    "canvas": cfg.get("canvas", {"w": 1080, "h": 1350}),
-                    "photo_zone": {"x": pz_x, "y": pz_y, "w": pz_w, "h": pz_h},
-                    "photo_gap": photo_gap, "corner_r": corner_r, "border_w": border_w,
-                    "frame_corner": frame_corner, "frame_inner": frame_inner, "frame_color": frame_color,
-                    "title": {
-                        "cx": t_cx, "y": t_y, "max_w": t_maxw,
-                        "size_line1": t_sz1, "color_line1": t_col1,
-                        "size_line2": t_sz2, "color_line2": t_col2,
-                        "line_h1": t_lh1, "line_h2": t_lh2,
-                    },
-                    "location": {"cx": l_cx, "y": l_y, "size": l_sz, "color": l_col},
-                    "date":     {"cx": d_cx, "y": d_y, "size": d_sz, "color": d_col},
-                }
+                new_cfg = _build_new_cfg(
+                    cfg, pz_x, pz_y, pz_w, pz_h,
+                    photo_gap, corner_r, border_w, frame_corner, frame_inner, frame_color,
+                    t_cx, t_y, t_maxw, t_sz1, t_col1, t_sz2, t_col2, t_lh1, t_lh2,
+                    l_cx, l_y, l_sz, l_col, d_cx, d_y, d_sz, d_col,
+                )
                 save_config(selected, new_cfg)
                 meta[selected] = {"label": tpl_label, "type": tpl_type}
                 save_meta(meta)
 
                 with st.spinner("Rendering..."):
-                    img = do_preview(selected, prev_n, prev_title, prev_loc)
+                    img = do_preview(selected, prev_n, prev_title, prev_loc, tpl_type)
                 if img:
                     buf = io.BytesIO()
                     img.save(buf, "JPEG", quality=88)

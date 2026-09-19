@@ -1,28 +1,48 @@
 {
   "canvas": {"w": 1080, "h": 1350},
-
   "photo_zone": {"x": 34, "y": 370, "w": 1012, "h": 850},
-
-  "photo_gap":   40,
-  "corner_r":    14,
-  "border_w":     3,
+  "photo_gap": 40,
+  "corner_r": 14,
+  "border_w": 3,
   "frame_corner": 22,
-  "frame_inner":  14,
-  "frame_color": "none",
-
+  "frame_inner": 14,
+  "frame_color": "#ffffff",
+  "title": {
+    "cx": 540,
+    "y": 142,
+    "max_w": 960,
+    "size_line1": 40,
+    "color_line1": "#ffd200",
+    "size_line2": 30,
+    "color_line2": "#ffffff",
+    "line_h1": 50,
+    "line_h2": 38
+  },
+  "location": {
+    "cx": 540,
+    "y": 1170,
+    "size": 22,
+    "color": "#ffffff"
+  },
+  "date": {
+    "cx": 540,
+    "y": 1205,
+    "size": 20,
+    "color": "#ffd200"
+  },
   "apel": {
-    "title_x":          52,
-    "title_y":         155,
-    "title_size":       44,
-    "info_x":           52,
-    "info_font_size":   25,
-    "icon_sz":          22,
-    "blur_radius":      10,
-    "dark_alpha":       75,
-    "grad_alpha":      115,
-    "frame_pad":        34,
-    "quote_h":         115,
-    "quote_font_size":  24,
-    "footer_ratio":    0.09
+    "title_x": 52,
+    "title_y": 155,
+    "title_size": 44,
+    "info_x": 52,
+    "info_font_size": 25,
+    "icon_sz": 22,
+    "blur_radius": 10,
+    "dark_alpha": 75,
+    "grad_alpha": 115,
+    "frame_pad": 34,
+    "quote_h": 115,
+    "quote_font_size": 24,
+    "footer_ratio": 0.09
   }
 }
