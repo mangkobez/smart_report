@@ -633,7 +633,7 @@ def render_apel(
         lh_q       = (bb_q[3] - bb_q[1]) + 12
         q_total_h  = max(1, len(q_lines)) * lh_q - 12
 
-        QM_SIZE    = max(38, Q_FSIZE + 10)
+        QM_SIZE    = max(72, Q_FSIZE + 44)
         fnt_qm     = _lora_italic(QM_SIZE)
         OPEN_CHAR  = '“'
         CLOSE_CHAR = '”'
@@ -657,13 +657,16 @@ def render_apel(
         canvas = Image.alpha_composite(canvas, q_layer)
         d_q = ImageDraw.Draw(canvas)
 
-        # Tanda petik statis di pojok — selalu di posisi sama
+        # Tanda petik statis — setengah di luar box, setengah di dalam
+        # Center glyph secara vertikal pada tepi atas (opening) dan bawah (closing)
+        oy = q_pill_y0 - (bb_o[1] + bb_o[3]) // 2
+        cy = q_pill_y1 - (bb_c[1] + bb_c[3]) // 2
         d_q.text(
-            (q_pill_x0 + 4, q_pill_y0 + 4 - bb_o[1]),
+            (q_pill_x0 + 10, oy),
             OPEN_CHAR, font=fnt_qm, fill=(255, 255, 255, 255)
         )
         d_q.text(
-            (q_pill_x1 - cl_w - 4, q_pill_y1 - cl_h - 4 - bb_c[1]),
+            (q_pill_x1 - cl_w - 10, cy),
             CLOSE_CHAR, font=fnt_qm, fill=(255, 255, 255, 255)
         )
 
