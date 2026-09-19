@@ -472,9 +472,9 @@ def render_apel(
         f"{event_date.day} {BULAN[event_date.month]} {event_date.year}"
     )
 
-    ICON_SZ = 18
+    ICON_SZ = 22
     PILL_PAD_X = 12
-    PILL_PAD_Y = 6
+    PILL_PAD_Y = 7
 
     def _draw_info_pill(canvas_in, text, icon_type, y):
         tw = _tw(text, fnt_info)
@@ -496,36 +496,51 @@ def render_apel(
         icon_y = pill_y0 + (pill_h - ICON_SZ) // 2
 
         if icon_type == "pin":
-            circle_r = ICON_SZ // 2 - 1
-            cx = icon_x + ICON_SZ // 2
-            cy = icon_y + circle_r + 1
-            ld.ellipse([(cx - circle_r, cy - circle_r),
-                         (cx + circle_r, cy + circle_r)],
-                        fill=(255, 255, 255, 220))
-            ld.ellipse([(cx - circle_r + 3, cy - circle_r + 3),
-                         (cx + circle_r - 3, cy + circle_r - 3)],
-                        fill=(0, 0, 0, 0))
-            ld.polygon([
-                (cx - 4, cy + circle_r - 1),
-                (cx + 4, cy + circle_r - 1),
-                (cx, icon_y + ICON_SZ - 1),
-            ], fill=(255, 255, 255, 220))
+            pin_file = ASSETS_DIR / "icons" / "icon_pin.png"
+            if pin_file.exists():
+                from PIL import ImageOps as _IO
+                _p = Image.open(pin_file).convert("L")
+                _p = _IO.invert(_p)
+                _pw = Image.new("RGBA", _p.size, (255, 255, 255, 255))
+                _pw.putalpha(_p)
+                _pw = _pw.resize((ICON_SZ, ICON_SZ), Image.LANCZOS)
+                layer.paste(_pw, (icon_x, icon_y), _pw.split()[3])
+            else:
+                # Teardrop fallback: render 4x, resize down
+                IC = ICON_SZ * 4
+                ic_img = Image.new("RGBA", (IC, IC), (0, 0, 0, 0))
+                icd = ImageDraw.Draw(ic_img)
+                HCX, HR = IC // 2, int(IC * 0.40)
+                HCY = int(IC * 0.40)
+                icd.ellipse([(HCX-HR, HCY-HR), (HCX+HR, HCY+HR)],
+                             fill=(255, 255, 255, 220))
+                icd.polygon([
+                    (HCX - int(IC*0.16), HCY + int(IC*0.24)),
+                    (HCX + int(IC*0.16), HCY + int(IC*0.24)),
+                    (HCX, IC - int(IC*0.05)),
+                ], fill=(255, 255, 255, 220))
+                HOLE_R = int(HR * 0.40)
+                icd.ellipse([(HCX-HOLE_R, HCY-HOLE_R), (HCX+HOLE_R, HCY+HOLE_R)],
+                             fill=(0, 0, 0, 0))
+                ic_img = ic_img.resize((ICON_SZ, ICON_SZ), Image.LANCZOS)
+                layer.paste(ic_img, (icon_x, icon_y), ic_img.split()[3])
         else:
             bx0, by0 = icon_x, icon_y
             bx1, by1 = icon_x + ICON_SZ, icon_y + ICON_SZ
             ld.rounded_rectangle([(bx0, by0), (bx1, by1)],
                                    radius=2, fill=(255, 255, 255, 220))
-            ld.rounded_rectangle([(bx0, by0), (bx1, by0 + 5)],
+            ld.rounded_rectangle([(bx0, by0), (bx1, by0 + 6)],
                                    radius=2, fill=(80, 120, 200, 255))
             for col in range(3):
                 for row in range(2):
-                    dx = bx0 + 3 + col * 5
-                    dy = by0 + 8 + row * 5
-                    ld.rectangle([(dx, dy), (dx + 2, dy + 2)],
+                    dx = bx0 + 3 + col * 6
+                    dy = by0 + 9 + row * 6
+                    ld.rectangle([(dx, dy), (dx + 3, dy + 3)],
                                   fill=(50, 80, 160, 200))
 
+        # Koreksi bb_i[1] agar teks tepat di tengah pill secara visual
         text_x = icon_x + ICON_SZ + 8
-        text_y = pill_y0 + PILL_PAD_Y
+        text_y = pill_y0 + PILL_PAD_Y - bb_i[1]
         ld.text((text_x, text_y), text, font=fnt_info, fill=(255, 255, 255, 255))
 
         return Image.alpha_composite(canvas_in, layer), pill_h + 6
@@ -568,7 +583,7 @@ def render_apel(
                 "w": photo_x1 - photo_x0,
                 "h": photo_y1 - photo_y0,
             },
-            "photo_gap":  26,
+            "photo_gap":  40,
             "corner_r":   14,
             "border_w":    3,
             "frame_inner":  0,
@@ -606,7 +621,7 @@ def render_apel(
         canvas = Image.alpha_composite(canvas, q_layer)
 
         d_q = ImageDraw.Draw(canvas)
-        q_y = q_pill_y0 + Q_PAD_Y
+        q_y = q_pill_y0 + Q_PAD_Y - bb_q[1]
         for ln in q_lines:
             d_q.text(
                 (frame_cx - _tw(ln, fnt_quote) // 2, q_y),
