@@ -628,14 +628,14 @@ def render_apel(
         frame_w   = frame_x1 - frame_x0
         frame_cx  = (frame_x0 + frame_x1) // 2
         q_lines   = _wrap(quote, fnt_quote, frame_w - 120)
-        bb_q      = fnt_quote.getbbox(“A”)
+        bb_q      = fnt_quote.getbbox("A")
         lh_q      = (bb_q[3] - bb_q[1]) + 12
         q_total_h = len(q_lines) * lh_q - 12  # last line doesn't need trailing gap
 
         QM_SIZE   = max(38, Q_FSIZE + 10)
         fnt_qm    = _lora_italic(QM_SIZE)
-        bb_o      = fnt_qm.getbbox(““”)
-        bb_c      = fnt_qm.getbbox(“””)
+        bb_o      = fnt_qm.getbbox("“")
+        bb_c      = fnt_qm.getbbox("”")
         open_h    = bb_o[3] - bb_o[1]
         cl_w      = bb_c[2] - bb_c[0]
         cl_h      = bb_c[3] - bb_c[1]
@@ -651,7 +651,7 @@ def render_apel(
         q_pill_y1    = q_pill_y0 + box_h
 
         # Box semi-transparan — pakai alpha_composite agar benar
-        q_layer = Image.new(“RGBA”, (W, H), (0, 0, 0, 0))
+        q_layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         ImageDraw.Draw(q_layer).rounded_rectangle(
             [(q_pill_x0, q_pill_y0), (q_pill_x1, q_pill_y1)],
             radius=12, fill=(255, 255, 255, 35)
@@ -660,16 +660,16 @@ def render_apel(
 
         d_q = ImageDraw.Draw(canvas)
 
-        # Opening “ — tepat di pojok atas-kiri box (4px dari tepi)
+        # Opening " — tepat di pojok atas-kiri box (4px dari tepi)
         d_q.text(
             (q_pill_x0 + 4, q_pill_y0 + 4 - bb_o[1]),
-            ““”, font=fnt_qm, fill=(255, 255, 255, 255)
+            "“", font=fnt_qm, fill=(255, 255, 255, 255)
         )
 
-        # Closing “ — tepat di pojok bawah-kanan box (4px dari tepi, bottom-aligned)
+        # Closing " — tepat di pojok bawah-kanan box (4px dari tepi, bottom-aligned)
         d_q.text(
             (q_pill_x1 - cl_w - 4, q_pill_y1 - cl_h - 4 - bb_c[1]),
-            “””, font=fnt_qm, fill=(255, 255, 255, 255)
+            "”", font=fnt_qm, fill=(255, 255, 255, 255)
         )
 
         # Teks quote — center vertikal dalam box, spasi baris lebih lega
